@@ -618,9 +618,10 @@ function buildDql(){
   const parts=[]
   dFilters.forEach(f=>{
     const v=String(f.value??'').replace(/"/g,'\\"')
+    const q=/^\d+(\.\d+)?$/.test(v)?'':'"'
     if(f.type==='exists')parts.push(`_exists_:${f.field}`)
-    else if(f.negate)parts.push(`-${f.field}:"${v}"`)
-    else parts.push(`+${f.field}:"${v}"`)
+    else if(f.negate)parts.push(`-${f.field}:${q}${v}${q}`)
+    else parts.push(`${f.field}:${q}${v}${q}`)
   })
   const userQ=document.getElementById('dqlInput').value.trim()
   if(userQ)parts.push(`(${userQ})`)
@@ -629,7 +630,8 @@ function buildDql(){
 function renderFilterChips(){
   if(!dFilters.length){document.getElementById('dChips').innerHTML='';return}
   document.getElementById('dChips').innerHTML=`<div class="doc-chips">${dFilters.map((f,i)=>{
-    const label=f.type==='exists'?`${f.field}: *`:`${f.field}: "${f.value}"`
+    const q=/^\d+(\.\d+)?$/.test(f.value)?'':'"'
+    const label=f.type==='exists'?`${f.field}: *`:`${f.field}: ${q}${f.value}${q}`
     const icon=f.negate?'⊖':'⊕'
     return `<span class="doc-chip">${icon} ${label} <span class="remove" onclick="dRemoveFilter(${i})">×</span></span>`
   }).join('')}</div>`
