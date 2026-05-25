@@ -37,6 +37,46 @@ for (const ep of ENDPOINTS) {
 app.post('/api/scan', (req, res) => proxy('/scan', req.body, res));
 app.post('/api/search', (req, res) => proxy('/search', req.body, res));
 
+// SOC Dashboard Aggregation Endpoint
+app.get('/api/dashboard', async (req, res) => {
+  const { index, start_date, end_date } = req.query;
+  const idx = index || 'wazuh-alerts-4.x-*';
+  const sd = start_date || 'now-24h';
+  const ed = end_date || 'now';
+  try {
+    const [
+      count24, count7d, count30d,
+      byLevel, topRules, topAgents,
+      timeline, categories, recent
+    ] = await Promise.all([
+      api.get('/count', { params: { index: idx, start_date: sd, end_date: ed } }).catch(() => ({ data: { count: 0 } })),
+      api.get('/count', { params: { index: idx, start_date: 'now-7d', end_date: 'now' } }).catch(() => ({ data: { count: 0 } })),
+      api.get('/count', { params: { index: idx, start_date: 'now-30d', end_date: 'now' } }).catch(() => ({ data: { count: 0 } })),
+      api.get('/aggregate', { params: { index: idx, field: 'rule.level', type: 'terms', start_date: sd, end_date: ed, limit: 20 } }).catch(() => ({ data: { buckets: [] } })),
+      api.get('/aggregate', { params: { index: idx, field: 'rule.id', type: 'terms', start_date: sd, end_date: ed, limit: 10 } }).catch(() => ({ data: { buckets: [] } })),
+      api.get('/aggregate', { params: { index: idx, field: 'agent.name', type: 'terms', start_date: sd, end_date: ed, limit: 10 } }).catch(() => ({ data: { buckets: [] } })),
+      api.get('/aggregate', { params: { index: idx, field: '@timestamp', type: 'date_histogram', interval: '1h', start_date: sd, end_date: ed, limit: 48 } }).catch(() => ({ data: { buckets: [] } })),
+      api.get('/aggregate', { params: { index: idx, field: 'rule.category', type: 'terms', start_date: sd, end_date: ed, limit: 10 } }).catch(() => ({ data: { buckets: [] } })),
+      api.get('/search', { params: { index: idx, limit: 10, sort: '@timestamp', order: 'desc', start_date: sd, end_date: ed, q: '' } }).catch(() => ({ data: { results: [], total: 0 } }))
+    ]);
+    res.json({
+      count24: count24.data.count || 0,
+      count7d: count7d.data.count || 0,
+      count30d: count30d.data.count || 0,
+      byLevel: byLevel.data.buckets || [],
+      topRules: topRules.data.buckets || [],
+      topAgents: topAgents.data.buckets || [],
+      timeline: timeline.data.buckets || [],
+      categories: categories.data.buckets || [],
+      recent: recent.data.results || [],
+      recentTotal: recent.data.total || 0
+    });
+  } catch (err) {
+    console.error('Dashboard error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // SPA fallback: serve index.html for any non-API route
 app.get('*', (req, res) => {
   const indexPath = path.join(distPath, 'index.html');

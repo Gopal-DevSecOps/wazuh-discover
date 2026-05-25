@@ -10,7 +10,7 @@ A professional Security Operations Center (SOC) dashboard built with React + Vit
 
 ### Tabs
 - **Discover** — Full OpenSearch-style log exploration with DQL search, filter bar, histogram, sortable results table, row expansion (Table/JSON views), field sidebar with stats, column toggle/reorder
-- **Dashboard** — Security overview with event counts and severity distribution
+- **Dashboard** — Full SOC security dashboard with summary cards (24h/7d/30d counts, alert rate), severity distribution bars, alert timeline area chart, top rules/agents, categories donut chart, recent alerts feed — all auto-refreshing every 60s
 - **Scan** — Security scan against IP/hostname/URL targets
 - **Analytics** — Top rules, top agents, severity distribution charts (recharts)
 - **Geo** — Geo-location cards by source IP
@@ -30,7 +30,7 @@ A professional Security Operations Center (SOC) dashboard built with React + Vit
 
 ### Backend
 - **Express.js proxy** server forwarding all requests to Wazuh API
-- **Endpoints**: `/api/search`, `/api/count`, `/api/aggregate`, `/api/fields`, `/api/health`, `/api/indices`, `/api/index-stats`, `/api/scan`, `/api/geo`
+- **Endpoints**: `/api/search`, `/api/count`, `/api/aggregate`, `/api/fields`, `/api/health`, `/api/indices`, `/api/index-stats`, `/api/scan`, `/api/geo`, `/api/dashboard` (parallel 9-call aggregate)
 - **120s timeout** for large result sets (7.9M+ events)
 - **SPA fallback** — serves built React app from `dist/`
 
@@ -38,13 +38,13 @@ A professional Security Operations Center (SOC) dashboard built with React + Vit
 
 ## Screenshots
 
-| Discover Tab | Dashboard Tab |
+| Discover Tab | Dashboard Tab (SOC) |
 |:---:|:---:|
-| ![Discover](output/Screenshot%202026-05-25%20224822.png) | ![Dashboard](output/Screenshot%202026-05-25%20142122.png) |
+| ![Discover](output/Screenshot%202026-05-25%20224822.png) | ![SOC Dashboard](output/Screenshot%202026-05-25%20225706.png) |
 
-| Doc Viewer | Refresh Interval |
+| Doc Viewer | Dashboard Tab (previous) |
 |:---:|:---:|
-| ![DocViewer](output/Screenshot%202026-05-25%20171900.png) | _(auto-refresh controls in QueryBar)_ |
+| ![DocViewer](output/Screenshot%202026-05-25%20171900.png) | ![Dashboard old](output/Screenshot%202026-05-25%20142122.png) |
 
 ---
 
@@ -113,7 +113,8 @@ src/
     ResultsTable.jsx  — Sortable, filterable results with row expansion
     DocViewer.jsx     — Table/JSON views with field tokens + action buttons
     FieldSidebar.jsx  — Field list with stats popover
-    DashboardStats.jsx
+    DashboardStats.jsx  (replaced by SocDashboard)
+    SocDashboard.jsx    — Full SOC dashboard: 7 widgets with live Wazuh data
   tabs/
     DiscoverTab.jsx
     DashboardTab.jsx
@@ -143,6 +144,8 @@ server/
 | Improved | Scrollbar styling, badge colors, card shadows |
 | Fixed | Server timeouts increased to 120s for large datasets |
 | Fixed | Circular dependency in dynamic import — switched to static import |
+| Added | SOC Dashboard with 7 live widgets (summary cards, severity bars, timeline area, top rules, categories donut, top agents, recent alerts) via `/api/dashboard` endpoint |
+| Added | Auto-refresh every 60s on Dashboard tab |
 
 ---
 
