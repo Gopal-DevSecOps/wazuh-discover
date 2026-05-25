@@ -135,6 +135,12 @@ td:hover .cell-filters{display:inline-flex;gap:1px}
 .qb-lang{background:var(--bg3);border:1px solid var(--border);color:var(--accent);padding:6px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:default;flex-shrink:0;border-left:0;border-radius:0 6px 6px 0}
 .qb-right{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .qb-date{display:flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:2px 4px}
+.qb-date-pretty{display:flex;align-items:center;gap:8px;cursor:pointer;padding:3px 8px;border-radius:4px;white-space:nowrap}
+.qb-date-pretty:hover{background:var(--hover)}
+.qb-date-label{font-size:12px;color:var(--text)}
+.qb-date-toggle{font-size:11px;color:var(--accent);text-decoration:underline dotted}
+.qb-date-toggle:hover{text-decoration:underline}
+.qb-date-expanded{display:none;align-items:center;gap:4px}
 .qb-refresh{background:var(--accent);border:none;color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap}
 .qb-refresh:hover{opacity:.85}
 .qb-limit{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:12px;cursor:pointer}
@@ -199,10 +205,15 @@ td:hover .cell-filters{display:inline-flex;gap:1px}
               <div class="date-q-item" data-val="90d">Last 90 days</div>
             </div>
           </div>
-          <span class="date-sep">|</span>
-          <input class="date-in" id="dStartDate" value="now-24h" spellcheck="false" title="Start date" />
-          <span class="date-sep">→</span>
-          <input class="date-in" id="dEndDate" value="now" spellcheck="false" title="End date" />
+          <div class="qb-date-pretty" id="dDatePretty" onclick="toggleDateExpanded()">
+            <span class="qb-date-label" id="dDateLabel">Last 24 hours</span>
+            <span class="qb-date-toggle" id="dDateToggle">Show dates</span>
+          </div>
+          <div class="qb-date-expanded" id="dDateExpanded">
+            <input class="date-in" id="dStartDate" value="now-24h" spellcheck="false" title="Start date" />
+            <span class="date-sep">→</span>
+            <input class="date-in" id="dEndDate" value="now" spellcheck="false" title="End date" />
+          </div>
           <select class="qb-limit" id="dLimit"><option>20</option><option selected>50</option><option>100</option><option>200</option><option>500</option></select>
         </div>
         <button class="qb-refresh" onclick="discoverSearch()">⟳ Refresh</button>
@@ -584,7 +595,18 @@ function setQuickDate(val){
   document.getElementById('dEndDate').value='now'
   document.getElementById('dQMenu').querySelectorAll('.date-q-item').forEach(el=>el.classList.toggle('active',el.dataset.val===val))
   document.getElementById('dQMenu').classList.remove('show')
+  updateDateLabel(val)
   discoverSearch()
+}
+function toggleDateExpanded(){
+  const p=document.getElementById('dDatePretty'),e=document.getElementById('dDateExpanded')
+  const isPretty=p.style.display!=='none'
+  p.style.display=isPretty?'none':''
+  e.style.display=isPretty?'':'none'
+}
+function updateDateLabel(val){
+  const names={15m:'15 minutes',1h:'1 hour',24h:'24 hours',7d:'7 days',30d:'30 days',90d:'90 days'}
+  document.getElementById('dDateLabel').textContent='Last '+(names[val]||val)
 }
 document.addEventListener('click',function(e){
   const menu=document.getElementById('dQMenu')
