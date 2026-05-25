@@ -4,6 +4,13 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Wazuh SOC Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={darkMode:['class','[data-theme="dark"]'],theme:{extend:{}}}
+</script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
 :root{--bg:#0f1923;--bg2:#1a2633;--bg3:#0d151e;--text:#e0e0e0;--text2:#78909c;--border:#263238;--accent:#00bcd4;--hover:#263238;--card-border:#00bcd4;--tbl-hover:#1a2633}
 [data-theme="light"]{--bg:#f5f5f5;--bg2:#ffffff;--bg3:#e8e8e8;--text:#212121;--text2:#757575;--border:#bdbdbd;--accent:#00838f;--hover:#e0e0e0;--card-border:#00838f;--tbl-hover:#f0f0f0}
@@ -193,29 +200,10 @@ td:hover .cell-filters{display:inline-flex;gap:1px}
         <span class="qb-lang">DQL</span>
       </div>
       <div class="qb-right">
-        <div class="qb-date">
-          <div class="date-q-wrap">
-            <button class="date-q-btn" onclick="toggleQuickSelect()" title="Date quick select">📅</button>
-            <div class="date-q-menu" id="dQMenu">
-              <div class="date-q-item" data-val="15m">Last 15 minutes</div>
-              <div class="date-q-item" data-val="1h">Last 1 hour</div>
-              <div class="date-q-item active" data-val="24h">Last 24 hours</div>
-              <div class="date-q-item" data-val="7d">Last 7 days</div>
-              <div class="date-q-item" data-val="30d">Last 30 days</div>
-              <div class="date-q-item" data-val="90d">Last 90 days</div>
-            </div>
-          </div>
-          <div class="qb-date-pretty" id="dDatePretty" onclick="toggleDateExpanded()" style="display:none">
-            <span class="qb-date-label" id="dDateLabel">Last 24 hours</span>
-            <span class="qb-date-toggle" id="dDateToggle">Show dates</span>
-          </div>
-          <div class="qb-date-expanded" id="dDateExpanded" style="display:flex">
-            <input class="date-in" id="dStartDate" value="now-24h" spellcheck="false" title="Start date" />
-            <span class="date-sep">→</span>
-            <input class="date-in" id="dEndDate" value="now" spellcheck="false" title="End date" />
-          </div>
+          <div id="datePickerMount"></div>
+          <input type="hidden" id="dStartDate" value="now-24h" />
+          <input type="hidden" id="dEndDate" value="now" />
           <select class="qb-limit" id="dLimit"><option>20</option><option selected>50</option><option>100</option><option>200</option><option>500</option></select>
-        </div>
         <button class="qb-refresh" onclick="discoverSearch()">⟳ Refresh</button>
       </div>
     </div>
@@ -561,11 +549,14 @@ function parseDateStr(s){
   s=s.trim()
   const now=new Date()
   if(s==='now/d'){const d=new Date(now);d.setHours(0,0,0,0);return d}
-  const m=s.match(/^now[+-](\d+)([hdwMy])(?:\/([hdwMy]))?$/)
+  if(s==='now/w'){const d=new Date(now);const day=d.getDay();d.setDate(d.getDate()-day);d.setHours(0,0,0,0);return d}
+  const m=s.match(/^now[+-](\d+)([smhdwMy])(?:\/([hdwMy]))?$/)
   if(m){
     const n=parseInt(m[1]),unit=m[2],round=m[3]
     const d=new Date(now)
-    if(unit==='h')d.setHours(d.getHours()-n)
+    if(unit==='s')d.setSeconds(d.getSeconds()-n)
+    else if(unit==='m')d.setMinutes(d.getMinutes()-n)
+    else if(unit==='h')d.setHours(d.getHours()-n)
     else if(unit==='d')d.setDate(d.getDate()-n)
     else if(unit==='w')d.setDate(d.getDate()-n*7)
     else if(unit==='M')d.setMonth(d.getMonth()-n)
@@ -614,6 +605,20 @@ document.addEventListener('click',function(e){
   const qi=e.target.closest('.date-q-item')
   if(qi)setQuickDate(qi.dataset.val)
 })
+let dSortField='@timestamp',dSortOrder='desc'
+function doSort(field){
+  if(dSortField===field)dSortOrder=dSortOrder==='asc'?'desc':'asc'
+  else{dSortField=field;dSortOrder='desc'}
+  discoverSearch()
+}
+function moveColumn(field,dir){
+  const i=dColumns.indexOf(field)
+  if(i<0)return
+  const j=i+dir
+  if(j<0||j>=dColumns.length)return
+  const t=dColumns.splice(i,1)[0];dColumns.splice(j,0,t)
+  renderFields(dFieldList);discoverSearch()
+}
 async function discoverSearch(){
   const q=buildDql()
   const limit=parseInt(document.getElementById('dLimit').value)||50
@@ -623,6 +628,7 @@ async function discoverSearch(){
   const tr=resolveTimeRange()
   params.start_date=tr.start_date
   params.end_date=tr.end_date
+  if(dSortField){params.sort=dSortField;params.order=dSortOrder}
 
   try{
     document.getElementById('dResults').innerHTML='<div class="loading">⏳ Searching...</div>'
@@ -645,7 +651,8 @@ async function discoverSearch(){
 
 function discoverRenderTable(results){
   if(!results.length)return '<div class="loading">No results</div>'
-  let h=`<table><thead><tr><th style="width:30px"></th>${dColumns.map(c=>`<th onclick="dColumns.splice(dColumns.indexOf('${c}'),1);renderFields(dFieldList);discoverSearch()" style="cursor:pointer" title="Remove column">${c} ×</th>`).join('')}</tr></thead><tbody>`
+  const sortCls=f=>dSortField===f?'sort-'+dSortOrder:'sort-none'
+  let h=`<table><thead><tr><th style="width:30px"></th>${dColumns.map(c=>`<th class="th-col"><div class="th-wrap"><span class="th-name" onclick="toggleFieldColumn('${c}');renderFields(dFieldList);discoverSearch()" title="Remove column">${c}</span><span class="th-actions"><span class="th-act ${sortCls(c)}" onclick="doSort('${c}')" title="Sort ${dSortField===c&&dSortOrder==='asc'?'descending':'ascending'}"><svg width="10" height="10" viewBox="0 0 16 16"><path d="M7 12.786V3.2L3.604 6.596a.5.5 0 0 1-.708-.707l3.536-3.535a1.5 1.5 0 0 1 2.121 0l3.536 3.535a.5.5 0 0 1-.707.707L8 3.214v9.557l3.382-3.382a.5.5 0 0 1 .707.707l-3.536 3.536a1.5 1.5 0 0 1-2.121 0l-3.536-3.536a.5.5 0 0 1 .708-.707L7 12.786Z"/></svg></span><span class="th-act" onclick="moveColumn('${c}',-1)" title="Move left">◀</span><span class="th-act" onclick="moveColumn('${c}',1)" title="Move right">▶</span><span class="th-act th-remove" onclick="toggleFieldColumn('${c}');renderFields(dFieldList);discoverSearch()" title="Remove column">✕</span></span></div></th>`).join('')}</tr></thead><tbody>`
   results.slice(0,200).forEach((a,i)=>{
     const rowId='dr'+i
     h+=`<tr onclick="toggleDocRow('${rowId}')" style="cursor:pointer">`
@@ -859,5 +866,267 @@ async function discoverLoadHistogram(params){
 
 setTimeout(discoverSearch,500)
 </script>
+<script type="text/babel">
+const{useState,useRef,useEffect,useCallback,useMemo}=React;
+function fmtDate(s){
+  try{
+    const d=new Date(s);
+    if(!isNaN(d))return d.toLocaleDateString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  }catch(e){}
+  return s;
+}
+function formatPretty(start,end){
+  const m=start.match(/^now-(\d+)([smhdwMy])$/);
+  if(m&&end==='now'){
+    const n=m[1],unit=m[2];
+    const names={s:'second'+(n>1?'s':''),m:'minute'+(n>1?'s':''),h:'hour'+(n>1?'s':''),d:'day'+(n>1?'s':''),w:'week'+(n>1?'s':''),M:'month'+(n>1?'s':''),y:'year'+(n>1?'s':'')};
+    return 'Last '+n+' '+names[unit];
+  }
+  if(start==='now'&&end==='now')return 'Now';
+  if(start.includes('T')||end.includes('T'))return fmtDate(start)+' to '+fmtDate(end);
+  return start+' to '+end;
+}
+const COMMON=[
+  {label:'Today',start:'now/d',end:'now'},
+  {label:'This week',start:'now/w',end:'now'},
+  {label:'Last 15 minutes',start:'now-15m',end:'now'},
+  {label:'Last 30 minutes',start:'now-30m',end:'now'},
+  {label:'Last 1 hour',start:'now-1h',end:'now'},
+  {label:'Last 24 hours',start:'now-24h',end:'now'},
+  {label:'Last 7 days',start:'now-7d',end:'now'},
+  {label:'Last 30 days',start:'now-30d',end:'now'},
+  {label:'Last 90 days',start:'now-90d',end:'now'},
+  {label:'Last 1 year',start:'now-1y',end:'now'}
+];
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS=['Su','Mo','Tu','We','Th','Fr','Sa'];
+const UNITS_LONG={s:'Second(s)',m:'Minute(s)',h:'Hour(s)',d:'Day(s)',w:'Week(s)',M:'Month(s)',y:'Year(s)'};
+function getCalCells(year,month){
+  const first=new Date(year,month,1).getDay();
+  const dim=new Date(year,month+1,0).getDate();
+  const dip=new Date(year,month,0).getDate();
+  const cells=[];
+  for(let i=first-1;i>=0;i--){const d=dip-i;const pm=month===0?11:month-1;const py=month===0?year-1:year;cells.push({day:d,month:pm,year:py,other:true,key:py+'-'+pm+'-'+d})}
+  for(let d=1;d<=dim;d++)cells.push({day:d,month,year,other:false,key:year+'-'+month+'-'+d});
+  const rem=42-cells.length;
+  for(let d=1;d<=rem;d++){const nm=month===11?0:month+1;const ny=month===11?year+1:year;cells.push({day:d,month:nm,year:ny,other:true,key:ny+'-'+nm+'-'+d})}
+  return cells;
+}
+function sameDay(a,b){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate()}
+function fmtTime(h,m){return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')}
+function DateRangePicker(){
+  const wrap=useRef(null);
+  const timeRef=useRef(null);
+  const [showQS,setShowQS]=useState(false);
+  const [showDP,setShowDP]=useState(false);
+  const [tab,setTab]=useState('relative');
+  const [relNum,setRelNum]=useState(24);
+  const [relUnit,setRelUnit]=useState('h');
+  const [startDate,setStartDate]=useState('now-24h');
+  const [endDate,setEndDate]=useState('now');
+  const [activeEdge,setActiveEdge]=useState('start');
+  const nowObj=useMemo(()=>new Date(),[]);
+  const [calYear,setCalYear]=useState(nowObj.getFullYear());
+  const [calMonth,setCalMonth]=useState(nowObj.getMonth());
+  const [absStartDate,setAbsStartDate]=useState(new Date(Date.now()-24*60*60*1000));
+  const [absEndDate,setAbsEndDate]=useState(new Date());
+  const [absStartTime,setAbsStartTime]=useState(fmtTime(new Date(Date.now()-24*60*60*1000).getHours(),0));
+  const [absEndTime,setAbsEndTime]=useState(fmtTime(new Date().getHours(),new Date().getMinutes()));
+  const isDark=()=>document.documentElement.getAttribute('data-theme')==='dark';
+  const sync=useCallback((s,e)=>{document.getElementById('dStartDate').value=s;document.getElementById('dEndDate').value=e},[]);
+  useEffect(()=>{sync(startDate,endDate)},[startDate,endDate]);
+  const closeAll=useCallback(()=>{setShowQS(false);setShowDP(false)},[]);
+  useEffect(()=>{
+    function h(e){if(wrap.current&&!wrap.current.contains(e.target))closeAll()}
+    if(showQS||showDP){document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h)}
+  },[showQS,showDP]);
+  const initAbs=useCallback(()=>{
+    const p=s=>{if(!s||s==='now')return new Date();const d=parseDateStr(s);return d&&!isNaN(d)?d:new Date()};
+    const sd=p(startDate),ed=p(endDate);
+    setAbsStartDate(sd);setAbsEndDate(ed);
+    setAbsStartTime(fmtTime(sd.getHours(),Math.floor(sd.getMinutes()/30)*30));
+    setAbsEndTime(fmtTime(ed.getHours(),Math.floor(ed.getMinutes()/30)*30));
+    setCalYear(sd.getFullYear());setCalMonth(sd.getMonth());
+  },[startDate,endDate]);
+  useEffect(()=>{
+    if(showDP&&tab==='absolute'&&timeRef.current){
+      const sel=timeRef.current.querySelector('[data-sel="1"]');
+      if(sel)sel.scrollIntoView({block:'center',behavior:'smooth'})
+    }
+  }, [showDP, tab, activeEdge, absStartTime, absEndTime]);
+  useEffect(() => {
+    if (!showDP) return;
+    const target = activeEdge === 'start' ? absStartDate : absEndDate;
+    if (target.getMonth() !== calMonth || target.getFullYear() !== calYear) {
+      setCalYear(target.getFullYear()); setCalMonth(target.getMonth());
+    }
+  }, [showDP, activeEdge]);
+  const applyRel=useCallback(()=>{setStartDate('now-'+relNum+relUnit);setEndDate('now');closeAll();setTimeout(discoverSearch,50)},[relNum,relUnit]);
+  const applyNow=useCallback(()=>{setStartDate('now');setEndDate('now');closeAll();setTimeout(discoverSearch,50)},[]);
+  const applyCommon=useCallback((c)=>{setStartDate(c.start);setEndDate(c.end);const m=c.start.match(/\d+/);setRelNum(m?parseInt(m[0]):24);const u=c.start.match(/[a-z]+$/);setRelUnit(u?u[0]:'h');closeAll();setTimeout(discoverSearch,50)},[]);
+  const applyAbsolute=useCallback(()=>{
+    let sd=new Date(absStartDate);const[sh,sm]=absStartTime.split(':').map(Number);sd.setHours(sh,sm,0,0);
+    let ed=new Date(absEndDate);const[eh,em]=absEndTime.split(':').map(Number);ed.setHours(eh,em,0,0);
+    if(ed<=sd){ed=new Date(sd);ed.setDate(ed.getDate()+1);ed.setHours(0,0,0,0)}
+    setStartDate(sd.toISOString());setEndDate(ed.toISOString());closeAll();setTimeout(discoverSearch,50)
+  },[absStartDate,absEndDate,absStartTime,absEndTime]);
+  const label=formatPretty(startDate,endDate);
+  const d=isDark();
+  const bdr=d?'border-[#263238]':'border-gray-200';
+  const bp=d?'bg-[#0d151e] border-[#263238] text-gray-200':'bg-gray-50 border-gray-300 text-gray-800';
+  const txt=d?'text-gray-300':'text-gray-600';
+  const txt2=d?'text-gray-400':'text-gray-500';
+  const btn=d?'border-[#263238] text-gray-300 hover:bg-[#263238]':'border-gray-300 text-gray-600 hover:bg-gray-100';
+  const tabCls='px-4 py-2 text-xs font-semibold border-b-2 cursor-pointer transition-colors '+(d?'text-gray-400 border-transparent hover:text-white':'text-gray-500 border-transparent hover:text-gray-800');
+  const tabAct='px-4 py-2 text-xs font-semibold border-b-2 cursor-pointer transition-colors '+(d?'text-blue-400 border-blue-400':'text-blue-600 border-blue-600');
+  const cCells=getCalCells(calYear,calMonth);
+  const today=new Date();
+  const selDate=activeEdge==='start'?absStartDate:absEndDate;
+  const selTime=activeEdge==='start'?absStartTime:absEndTime;
+  const setSelDate=dt=>{if(activeEdge==='start')setAbsStartDate(dt);else setAbsEndDate(dt)};
+  const setSelTime=t=>{if(activeEdge==='start')setAbsStartTime(t);else setAbsEndTime(t)};
+  const timeSlots=[];for(let h=0;h<24;h++)for(let m=0;m<60;m+=30)timeSlots.push(fmtTime(h,m));
+  const nowTime=fmtTime(today.getHours(),today.getMinutes());
+
+  return React.createElement('div',{className:'flex items-center gap-1',ref:wrap},
+    React.createElement('div',{className:'relative'},
+      React.createElement('button',{
+        onClick:e=>{e.stopPropagation();setShowQS(!showQS);setShowDP(false)},
+        className:'px-1.5 py-1 rounded-l text-xs transition-colors '+(d?'hover:bg-[#263238] text-gray-400':'hover:bg-gray-100 text-gray-500'),
+        title:'Quick select'
+      },'\uD83D\uDCC5'),
+      showQS&&React.createElement('div',{
+        className:'absolute top-full left-0 mt-1 z-[200] w-[340px] rounded-lg shadow-2xl border overflow-hidden animate-pop '+(d?'bg-[#1a2633] border-[#263238]':'bg-white border-gray-200')},
+        React.createElement('div',{className:'p-3'},
+          React.createElement('div',{className:'flex items-center gap-2 mb-3'},
+            React.createElement('span',{className:'text-xs font-medium '+txt},'Last'),
+            React.createElement('input',{type:'number',min:1,value:relNum,onChange:e=>setRelNum(parseInt(e.target.value)||1),className:'w-16 px-2 py-1 text-xs border rounded text-center '+bp}),
+            React.createElement('select',{value:relUnit,onChange:e=>setRelUnit(e.target.value),className:'px-2 py-1 text-xs border rounded '+bp},
+              Object.keys(UNITS_LONG).map(u=>React.createElement('option',{key:u,value:u},UNITS_LONG[u]))
+            ),
+            React.createElement('button',{onClick:applyRel,className:'px-3 py-1 text-xs font-semibold text-white rounded bg-blue-600 hover:bg-blue-700 transition-colors'},'Apply')
+          ),
+          React.createElement('div',{className:'font-semibold text-xs mb-1 '+txt},'Commonly used'),
+          React.createElement('div',{className:'grid grid-cols-2 gap-x-2'},
+            COMMON.map((c,i)=>React.createElement('button',{key:i,onClick:()=>applyCommon(c),className:'text-left px-2 py-1 text-xs rounded transition-colors '+(d?'text-blue-400 hover:bg-[#263238]':'text-blue-600 hover:bg-gray-100')},c.label))
+          )
+        )
+      )
+    ),
+    React.createElement('div',{className:'relative'},
+      React.createElement('button',{
+        onClick:e=>{e.stopPropagation();setShowDP(!showDP);setShowQS(false);if(!showDP)initAbs()},
+        className:'flex items-center gap-1.5 px-2.5 py-1 text-xs border-r-0 rounded-r whitespace-nowrap transition-colors '+(d?'bg-[#1a2633] border-[#263238] text-gray-200 hover:bg-[#263238]':'bg-white border-gray-300 text-gray-700 hover:bg-gray-50')
+      },
+        React.createElement('span',{className:'font-medium'},label),
+        React.createElement('span',{className:'text-[10px] '+(d?'text-gray-500':'text-gray-400')},showDP?'\u25B2':'\u25BC')
+      ),
+      showDP&&React.createElement('div',{
+        className:'absolute top-full right-0 mt-1 z-[200] w-[580px] rounded-lg shadow-2xl border overflow-hidden animate-pop '+(d?'bg-[#1a2633] border-[#263238]':'bg-white border-gray-200')},
+        React.createElement('div',{className:'flex border-b '+bdr},
+          ['relative','absolute','now'].map(t=>React.createElement('div',{key:t,onClick:()=>{setTab(t);if(t==='absolute')initAbs()},className:tab===t?tabAct:tabCls},t.charAt(0).toUpperCase()+t.slice(1)))
+        ),
+        tab==='relative'&&React.createElement('div',{className:'p-4 space-y-4'},
+          React.createElement('div',{className:'flex items-center gap-3'},
+            React.createElement('span',{className:'text-xs font-medium '+txt},'Last'),
+            React.createElement('input',{type:'number',min:1,value:relNum,onChange:e=>setRelNum(parseInt(e.target.value)||1),className:'w-20 px-2 py-1 text-xs border rounded text-center '+bp}),
+            React.createElement('select',{value:relUnit,onChange:e=>setRelUnit(e.target.value),className:'px-2 py-1 text-xs border rounded '+bp},
+              ['h','d','w','M','y'].map(u=>React.createElement('option',{key:u,value:u},{h:'Hour(s)',d:'Day(s)',w:'Week(s)',M:'Month(s)',y:'Year(s)'}[u]))
+            ),
+            React.createElement('span',{className:'text-xs '+txt2},'to now')
+          ),
+          React.createElement('div',{className:'flex justify-between text-xs '+txt2},
+            React.createElement('div',null,React.createElement('span',{className:'font-semibold '+txt},'Start: '),startDate),
+            React.createElement('div',null,React.createElement('span',{className:'font-semibold '+txt},'End: '),endDate)
+          ),
+          React.createElement('div',{className:'flex justify-end gap-2 pt-2 border-t '+bdr},
+            React.createElement('button',{onClick:closeAll,className:'px-4 py-1.5 text-xs rounded border transition-colors '+btn},'Cancel'),
+            React.createElement('button',{onClick:applyRel,className:'px-4 py-1.5 text-xs rounded font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors'},'Apply')
+          )
+        ),
+        tab==='absolute'&&React.createElement('div',{className:'p-3'},
+          React.createElement('div',{className:'flex gap-2 mb-2'},
+            React.createElement('button',{onClick:()=>setActiveEdge('start'),className:'px-2 py-1 rounded text-xs font-semibold transition-colors '+(activeEdge==='start'?'bg-blue-600 text-white':'border rounded '+btn)},'Start date'),
+            React.createElement('button',{onClick:()=>setActiveEdge('end'),className:'px-2 py-1 rounded text-xs font-semibold transition-colors '+(activeEdge==='end'?'bg-blue-600 text-white':'border rounded '+btn)},'End date')
+          ),
+          React.createElement('div',{className:'flex gap-3'},
+            React.createElement('div',{className:'flex-1 min-w-0'},
+              React.createElement('div',{className:'flex items-center justify-between mb-1 px-1 '+txt},
+                React.createElement('button',{onClick:()=>{if(calMonth===0){setCalYear(y=>y-1);setCalMonth(11)}else setCalMonth(m=>m-1)},className:'px-2 py-0.5 rounded hover:bg-blue-500/20 transition-colors text-sm',title:'Previous month'},'\u25C0'),
+                React.createElement('span',{className:'text-xs font-semibold'},MONTHS[calMonth]+' '+calYear),
+                React.createElement('button',{onClick:()=>{if(calMonth===11){setCalYear(y=>y+1);setCalMonth(0)}else setCalMonth(m=>m+1)},className:'px-2 py-0.5 rounded hover:bg-blue-500/20 transition-colors text-sm',title:'Next month'},'\u25B6')
+              ),
+              React.createElement('div',{className:'grid grid-cols-7 gap-0 mb-0.5'},
+                DAYS.map(dd=>React.createElement('div',{key:dd,className:'text-center text-[10px] font-semibold py-1 '+txt2},dd))
+              ),
+              React.createElement('div',{className:'grid grid-cols-7 gap-0'},
+                  cCells.map(cell=>{
+                  const cd=new Date(cell.year,cell.month,cell.day);
+                  const isT=sameDay(cd,today);
+                  const isSel=sameDay(cd,selDate);
+                  const cls='text-center text-xs py-1 rounded transition-colors '+(isSel?'bg-blue-600 text-white font-semibold':isT?d?'bg-blue-500/20 text-blue-400 font-semibold':'bg-blue-100 text-blue-700 font-semibold':cell.other?d?'text-gray-600':'text-gray-400':d?'text-gray-300 hover:bg-[#263238]':'text-gray-700 hover:bg-gray-100');
+                  const pickDate=()=>{const nd=new Date(cell.year,cell.month,cell.day);const[h,m]=selTime.split(':').map(Number);nd.setHours(h,m,0,0);setSelDate(nd)};
+                  return React.createElement('button',{key:cell.key,onClick:pickDate,className:cls,tabIndex:0,onKeyDown:e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pickDate()}},title:MONTHS[cell.month]+' '+cell.day+', '+cell.year},cell.day)
+                })
+              ),
+              React.createElement('div',{className:'mt-2 pt-2 border-t text-xs '+bdr},
+                React.createElement('div',{className:'flex items-center gap-2 mb-1'},
+                  React.createElement('span',{className:'font-semibold '+txt},'Start:'),
+                  React.createElement('input',{type:'datetime-local',value:String(absStartDate.getFullYear())+'-'+String(absStartDate.getMonth()+1).padStart(2,'0')+'-'+String(absStartDate.getDate()).padStart(2,'0')+'T'+absStartTime,onChange:e=>{const v=e.target.value;if(v){const[dStr,tStr]=v.split('T');const[y,mo,da]=dStr.split('-').map(Number);setAbsStartDate(new Date(y,mo-1,da));setAbsStartTime(tStr)}},className:'flex-1 px-2 py-1 border rounded text-xs '+bp})
+                ),
+                React.createElement('div',{className:'flex items-center gap-2'},
+                  React.createElement('span',{className:'font-semibold '+txt},'End:'),
+                  React.createElement('input',{type:'datetime-local',value:String(absEndDate.getFullYear())+'-'+String(absEndDate.getMonth()+1).padStart(2,'0')+'-'+String(absEndDate.getDate()).padStart(2,'0')+'T'+absEndTime,onChange:e=>{const v=e.target.value;if(v){const[dStr,tStr]=v.split('T');const[y,mo,da]=dStr.split('-').map(Number);setAbsEndDate(new Date(y,mo-1,da));setAbsEndTime(tStr)}},className:'flex-1 px-2 py-1 border rounded text-xs '+bp})
+                )
+              )
+            ),
+            React.createElement('div',{className:'w-20 border-l pl-2 '+bdr},
+              React.createElement('div',{className:'text-[10px] font-semibold mb-1 text-center '+txt2},'Time'),
+              React.createElement('div',{ref:timeRef,className:'h-[276px] overflow-y-auto space-y-0.5 pr-0.5'},
+                timeSlots.map(t=>React.createElement('button',{
+                  key:t,
+                  'data-sel':t===selTime?'1':'0',
+                  onClick:()=>setSelTime(t),
+                  className:'block w-full text-center text-xs py-1 rounded transition-colors '+(t===selTime?'bg-blue-600 text-white font-semibold':t===nowTime?d?'text-blue-400 font-medium':'text-blue-600 font-medium':d?'text-gray-400 hover:bg-[#263238]':'text-gray-600 hover:bg-gray-100')
+                },t))
+              )
+            )
+          ),
+          React.createElement('div',{className:'flex justify-end gap-2 pt-2 mt-2 border-t '+bdr},
+            React.createElement('button',{onClick:closeAll,className:'px-4 py-1.5 text-xs rounded border transition-colors '+btn},'Cancel'),
+            React.createElement('button',{onClick:applyAbsolute,className:'px-4 py-1.5 text-xs rounded font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors'},'Apply')
+          )
+        ),
+        tab==='now'&&React.createElement('div',{className:'p-6 text-center space-y-4'},
+          React.createElement('div',{className:'text-lg'},'\uD83D\uDD50'),
+          React.createElement('div',{className:'text-sm font-semibold '+txt},'Set start and end to now'),
+          React.createElement('div',{className:'flex justify-center gap-2'},
+            React.createElement('button',{onClick:closeAll,className:'px-4 py-1.5 text-xs rounded border transition-colors '+btn},'Cancel'),
+            React.createElement('button',{onClick:applyNow,className:'px-4 py-1.5 text-xs rounded font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors'},'Apply')
+          )
+        )
+      )
+    )
+  );
+}
+const root=ReactDOM.createRoot(document.getElementById('datePickerMount'));
+root.render(React.createElement(DateRangePicker));
+</script>
+<style>
+.animate-pop{animation:popIn .15s ease-out}@keyframes popIn{0%{opacity:0;transform:scale(.96) translateY(-4px)}to{opacity:1;transform:scale(1) translateY(0)}}
+#dFilterBar+.add-filter-btn{transition:opacity .2s}
+.th-col{position:relative;padding:0!important;white-space:nowrap}
+.th-wrap{display:flex;align-items:center;gap:4px;padding:6px 8px;transition:background .15s}
+.th-wrap:hover{background:var(--hover)}
+.th-name{cursor:pointer;color:var(--accent);font-weight:600;font-size:12px;flex-shrink:0}
+.th-actions{display:none;align-items:center;gap:2px}
+.th-wrap:hover .th-actions{display:flex}
+.th-act{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:3px;cursor:pointer;opacity:.6;transition:.15s}
+.th-act:hover{opacity:1;background:var(--accent);color:#fff}
+.th-remove:hover{background:#d32f2f!important}
+.th-act svg{fill:currentColor;width:10px;height:10px}
+.sort-asc svg,.sort-desc svg{fill:var(--accent)!important;opacity:1!important}
+.sort-none svg{opacity:.4}
+</style>
 </body>
 </html>
