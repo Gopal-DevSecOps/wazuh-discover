@@ -557,20 +557,21 @@ function getTypeIcon(type){
 function renderDocViewer(doc){
   const id='dv'+Math.random().toString(36).slice(2,8)
   const flat=flattenObj(doc)
-  const esc=v=>String(v??'').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
-  const escAttr=v=>String(v??'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
+  const esc=v=>String(v??'').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
   let tableRows=flat.map(f=>{
     const type=getFieldType(f.path)
     const val=esc(f.value)
-    const raw=escAttr(f.value)
+    const fld=esc(f.path)
+    const fldAttr=fld.replace(/'/g,'&#39;').replace(/"/g,'&quot;').replace(/&/g,'&amp;')
+    const valAttr=esc(f.value).replace(/'/g,'&#39;').replace(/"/g,'&quot;').replace(/&/g,'&amp;')
     return `<tr>
       <td class="doc-actions">
-        <button class="doc-action-btn" onclick="dFilterFor('${f.path}','${raw}')" title="Filter for value">＋</button>
-        <button class="doc-action-btn" onclick="dFilterOut('${f.path}','${raw}')" title="Filter out value">－</button>
-        <button class="doc-action-btn" onclick="dToggleColumn('${f.path}')" title="Toggle column in table">⊞</button>
-        <button class="doc-action-btn" onclick="dFilterExists('${f.path}')" title="Filter for field present">◉</button>
+        <button class="doc-action-btn" data-act="filterFor" data-field="${fldAttr}" data-value="${valAttr}" title="Filter for value">＋</button>
+        <button class="doc-action-btn" data-act="filterOut" data-field="${fldAttr}" data-value="${valAttr}" title="Filter out value">－</button>
+        <button class="doc-action-btn" data-act="toggleColumn" data-field="${fldAttr}" data-value="" title="Toggle column in table">⊞</button>
+        <button class="doc-action-btn" data-act="filterExists" data-field="${fldAttr}" data-value="" title="Filter for field present">◉</button>
       </td>
-      <td><span class="doc-field-icon">${getTypeIcon(type)}</span><span class="doc-field-name">${esc(f.path)}</span></td>
+      <td><span class="doc-field-icon">${getTypeIcon(type)}</span><span class="doc-field-name">${fld}</span></td>
       <td class="doc-value">${val.substring(0,600)}</td>
     </tr>`
   }).join('')
@@ -619,6 +620,18 @@ function dToggleColumn(field){
   if(dColumns.length<1)dColumns=['@timestamp']
   renderFields(dFieldList);discoverSearch()
 }
+
+document.addEventListener('click',function(e){
+  const btn=e.target.closest('.doc-action-btn')
+  if(!btn)return
+  const act=btn.dataset.act
+  const field=btn.dataset.field
+  const value=btn.dataset.value
+  if(act==='filterFor')dFilterFor(field,value)
+  else if(act==='filterOut')dFilterOut(field,value)
+  else if(act==='filterExists')dFilterExists(field)
+  else if(act==='toggleColumn')dToggleColumn(field)
+})
 
 async function discoverLoadHistogram(params){
   try{
