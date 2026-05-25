@@ -109,6 +109,21 @@ td:hover .cell-filters{display:inline-flex;gap:1px}
 .cell-filter-btn:hover{opacity:1}
 .cell-filter-btn svg{width:12px;height:12px;display:block;fill:currentColor}
 [data-theme="light"] .crit,[data-theme="system"] .crit{background:#d32f2f}
+.date-picker{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:2px 6px}
+.date-q-wrap{position:relative}
+.date-q-btn{background:0 0;border:none;color:var(--text2);cursor:pointer;padding:4px 6px;border-radius:4px;font-size:15px;line-height:1}
+.date-q-btn:hover{background:var(--hover);color:var(--accent)}
+.date-q-menu{display:none;position:absolute;top:100%;left:0;z-index:100;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:4px;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.date-q-menu.show{display:block}
+.date-q-item{padding:6px 12px;cursor:pointer;font-size:12px;color:var(--text);border-radius:4px}
+.date-q-item:hover{background:var(--hover);color:var(--accent)}
+.date-q-item.active{background:var(--accent);color:#fff}
+.date-inline{display:flex;align-items:center;gap:4px}
+.date-in{background:0 0;border:none;color:var(--text);font-size:12px;font-family:monospace;padding:4px 6px;width:130px;outline:0}
+.date-in:focus{color:var(--accent)}
+.date-sep{color:var(--text2);font-size:13px;padding:0 2px}
+.refresh-btn{background:var(--accent);border:none;color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:.2s}
+.refresh-btn:hover{opacity:.85}
 
 @media(max-width:700px){.grid-2{grid-template-columns:1fr}.disc-layout{flex-direction:column}.disc-fields{width:100%;max-height:200px}}
 </style>
@@ -137,9 +152,26 @@ td:hover .cell-filters{display:inline-flex;gap:1px}
 <div class="panel active" id="panel-discover">
   <div class="disc-top">
     <input type="text" id="dqlInput" placeholder='DQL — rule.level:[12 TO 15] OR data.win.system.eventID:"4625"' spellcheck="false" />
-    <select id="dTime"><option value="1h">1h</option><option value="24h" selected>24h</option><option value="7d">7d</option><option value="30d">30d</option><option value="all">All</option></select>
-    <select id="dLimit"><option>20</option><option selected>50</option><option>100</option><option>200</option><option>500</option></select>
-    <button class="all" onclick="discoverSearch()" style="padding:8px 20px">Search</button>
+    <div class="date-picker">
+      <div class="date-q-wrap">
+        <button class="date-q-btn" onclick="toggleQuickSelect()" title="Date quick select" id="dQBtn">📅</button>
+        <div class="date-q-menu" id="dQMenu">
+          <div class="date-q-item" data-val="15m">Last 15 minutes</div>
+          <div class="date-q-item" data-val="1h">Last 1 hour</div>
+          <div class="date-q-item active" data-val="24h">Last 24 hours</div>
+          <div class="date-q-item" data-val="7d">Last 7 days</div>
+          <div class="date-q-item" data-val="30d">Last 30 days</div>
+          <div class="date-q-item" data-val="90d">Last 90 days</div>
+        </div>
+      </div>
+      <div class="date-inline">
+        <input class="date-in" id="dStartDate" value="now-24h" spellcheck="false" title="Start date" />
+        <span class="date-sep">→</span>
+        <input class="date-in" id="dEndDate" value="now" spellcheck="false" title="End date" />
+      </div>
+      <select id="dLimit"><option>20</option><option selected>50</option><option>100</option><option>200</option><option>500</option></select>
+      <button class="refresh-btn" onclick="discoverSearch()">⟳ Refresh</button>
+    </div>
   </div>
   <div class="filter-chips" id="dChips"></div>
   <div class="disc-layout">
@@ -473,21 +505,62 @@ function discoverAddColumn(){
   if(f&&f.trim()){dColumns.push(f.trim());renderFields(dFieldList);discoverSearch()}
 }
 
+function parseDateStr(s){
+  if(!s||s==='now')return new Date()
+  s=s.trim()
+  const now=new Date()
+  if(s==='now/d'){const d=new Date(now);d.setHours(0,0,0,0);return d}
+  const m=s.match(/^now[+-](\d+)([hdwMy])(?:\/([hdwMy]))?$/)
+  if(m){
+    const n=parseInt(m[1]),unit=m[2],round=m[3]
+    const d=new Date(now)
+    if(unit==='h')d.setHours(d.getHours()-n)
+    else if(unit==='d')d.setDate(d.getDate()-n)
+    else if(unit==='w')d.setDate(d.getDate()-n*7)
+    else if(unit==='M')d.setMonth(d.getMonth()-n)
+    else if(unit==='y')d.setFullYear(d.getFullYear()-n)
+    if(round==='d')d.setHours(0,0,0,0)
+    else if(round==='h')d.setMinutes(0,0,0)
+    else if(round==='M'){d.setDate(1);d.setHours(0,0,0,0)}
+    else if(round==='y'){d.setMonth(0,1);d.setHours(0,0,0,0)}
+    return d
+  }
+  const iso=new Date(s)
+  if(!isNaN(iso))return iso
+  return now
+}
+function resolveTimeRange(){
+  const rawStart=document.getElementById('dStartDate').value.trim()
+  const rawEnd=document.getElementById('dEndDate').value.trim()
+  const start=parseDateStr(rawStart)
+  const end=parseDateStr(rawEnd)
+  return{start_date:start.toISOString(),end_date:end.toISOString()}
+}
+function toggleQuickSelect(){
+  document.getElementById('dQMenu').classList.toggle('show')
+}
+function setQuickDate(val){
+  document.getElementById('dStartDate').value='now-'+val
+  document.getElementById('dEndDate').value='now'
+  document.getElementById('dQMenu').querySelectorAll('.date-q-item').forEach(el=>el.classList.toggle('active',el.dataset.val===val))
+  document.getElementById('dQMenu').classList.remove('show')
+  discoverSearch()
+}
+document.addEventListener('click',function(e){
+  const menu=document.getElementById('dQMenu')
+  if(!e.target.closest('.date-q-wrap')&&menu.classList.contains('show'))menu.classList.remove('show')
+  const qi=e.target.closest('.date-q-item')
+  if(qi)setQuickDate(qi.dataset.val)
+})
 async function discoverSearch(){
   const q=buildDql()
-  const timeRange=document.getElementById('dTime').value
   const limit=parseInt(document.getElementById('dLimit').value)||50
   const index=document.getElementById('dIndex').value
   const params={limit,index}
   if(q)params.q=q
-
-  if(timeRange!=='all'){
-    const now=new Date()
-    const m=parseInt(timeRange)
-    if(timeRange.includes('h'))params.start_date=new Date(now-m*3600000).toISOString()
-    else if(timeRange.includes('d'))params.start_date=new Date(now-m*86400000).toISOString()
-    params.end_date=now.toISOString()
-  }
+  const tr=resolveTimeRange()
+  params.start_date=tr.start_date
+  params.end_date=tr.end_date
 
   try{
     document.getElementById('dResults').innerHTML='<div class="loading">⏳ Searching...</div>'
