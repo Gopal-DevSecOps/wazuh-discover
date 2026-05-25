@@ -80,6 +80,28 @@ h1{color:var(--accent);font-weight:300;letter-spacing:1px;display:inline-block}
 .histogram .bar-col .h-label{font-size:9px;color:var(--text2);margin-top:2px;white-space:nowrap;transform:rotate(-45deg)}
 .disc-toggle{font-size:11px;color:var(--text2);cursor:pointer;padding:2px 6px;border-radius:4px;border:1px solid var(--border);background:0 0;margin-bottom:8px;display:inline-block}
 .disc-toggle:hover{background:var(--hover)}
+.doc-expanded{background:var(--bg3);border-top:2px solid var(--accent)}
+.doc-expand-header{display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:4px}
+.doc-expand-title{font-size:13px;font-weight:600;color:var(--accent)}
+.doc-tabs{display:flex;gap:2px}
+.doc-tab{padding:4px 14px;font-size:12px;border:none;background:0 0;color:var(--text2);cursor:pointer;border-radius:4px 4px 0 0;font-weight:600}
+.doc-tab.active{color:var(--accent);background:var(--bg3)}
+.doc-view-panel{display:none}
+.doc-view-panel.active{display:block}
+.doc-field-table{width:100%;border-collapse:collapse;font-size:12px}
+.doc-field-table td{padding:4px 8px;border-bottom:1px solid var(--border);vertical-align:top;line-height:1.6}
+.doc-actions{white-space:nowrap;width:96px}
+.doc-action-btn{background:0 0;border:none;color:var(--text2);cursor:pointer;padding:2px 5px;border-radius:3px;font-size:11px;line-height:1;transition:.15s;opacity:.6}
+.doc-action-btn:hover{opacity:1;color:var(--accent);background:var(--hover)}
+.doc-field-icon{display:inline-block;width:13px;height:13px;vertical-align:middle;margin-right:3px;color:var(--text2)}
+.doc-field-icon svg{width:13px;height:13px;display:block;fill:currentColor}
+.doc-field-name{color:var(--text);font-weight:500;vertical-align:middle;font-size:12px}
+.doc-value{color:var(--text2);word-break:break-all;font-family:monospace;font-size:11px;max-width:500px}
+.doc-json-pre{background:var(--bg3);padding:16px;margin:0;font-size:11px;overflow-x:auto;max-height:500px;color:var(--text);line-height:1.5}
+.doc-chips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.doc-chip{display:inline-flex;align-items:center;gap:4px;background:var(--bg2);border:1px solid var(--accent);color:var(--accent);padding:2px 10px;border-radius:12px;font-size:11px}
+.doc-chip .remove{cursor:pointer;font-weight:700;margin-left:4px;color:var(--text2)}
+.doc-chip .remove:hover{color:#f44336}
 [data-theme="light"] .crit,[data-theme="system"] .crit{background:#d32f2f}
 
 @media(max-width:700px){.grid-2{grid-template-columns:1fr}.disc-layout{flex-direction:column}.disc-fields{width:100%;max-height:200px}}
@@ -476,9 +498,8 @@ function discoverRenderTable(results){
   let h=`<table><thead><tr><th style="width:30px"></th>${dColumns.map(c=>`<th onclick="dColumns.splice(dColumns.indexOf('${c}'),1);renderFields(dFieldList);discoverSearch()" style="cursor:pointer" title="Remove column">${c} ×</th>`).join('')}</tr></thead><tbody>`
   results.slice(0,200).forEach((a,i)=>{
     const rowId='dr'+i
-    const jsonStr=JSON.stringify(a,null,2).replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    h+=`<tr onclick="document.getElementById('${rowId}').style.display=document.getElementById('${rowId}').style.display==='none'?'table-row':'none'" style="cursor:pointer">`
-    h+=`<td style="color:var(--text2);font-size:12px">▶</td>`
+    h+=`<tr onclick="toggleDocRow('${rowId}')" style="cursor:pointer">`
+    h+=`<td style="color:var(--text2);font-size:12px" id="${rowId}-icon">▶</td>`
     h+=dColumns.map(c=>{
       let v=resolveField(a,c),td=''
       if(c==='rule.level'){const l=parseInt(v)||0;td=`<span class="level-badge ${l>=15?'lvl-15':l>=12?'lvl-12':l>=7?'lvl-7':'lvl-0'}">${v}</span>`}
@@ -486,12 +507,117 @@ function discoverRenderTable(results){
       else{if(v&&String(v).length>80)v=String(v).substring(0,80)+'…';td=v||'—'}
       return `<td>${td}</td>`
     }).join('')+'</tr>'
-    h+=`<tr id="${rowId}" style="display:none"><td colspan="${dColumns.length+1}" style="padding:0"><pre style="background:var(--bg3);padding:16px;margin:0;font-size:12px;overflow-x:auto;border-radius:0;max-height:400px">${jsonStr}</pre></td></tr>`
+    h+=`<tr id="${rowId}" style="display:none"><td colspan="${dColumns.length+1}" style="padding:0">${renderDocViewer(a)}</td></tr>`
   })
   return h+'</tbody></table>'
 }
 function resolveField(obj,path){
   try{return path.split('.').reduce((o,p)=>o?.[p],obj)??''}catch(e){return ''}
+}
+function toggleDocRow(id){
+  const row=document.getElementById(id);const icon=document.getElementById(id+'-icon')
+  if(!row)return
+  if(row.style.display==='none'){row.style.display='table-row';if(icon)icon.textContent='▼'}
+  else{row.style.display='none';if(icon)icon.textContent='▶'}
+}
+function flattenObj(obj,prefix){
+  let result=[];prefix=prefix||''
+  if(obj===null||obj===undefined)return[{path:prefix||'value',value:null}]
+  if(typeof obj!=='object')return[{path:prefix||'value',value:obj}]
+  if(Array.isArray(obj)){
+    if(!obj.length)return[{path:prefix||'value',value:''}]
+    if(obj.every(v=>v===null||v===undefined||typeof v!=='object'))return[{path:prefix||'value',value:obj.join(', ')}]
+    return[{path:prefix||'value',value:JSON.stringify(obj)}]
+  }
+  const entries=Object.entries(obj)
+  if(!entries.length)return[{path:prefix||'value',value:''}]
+  for(const[k,v]of entries){
+    const path=prefix?prefix+'.'+k:k
+    if(v!==null&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length>0)
+      result=result.concat(flattenObj(v,path))
+    else result.push({path,value:v})
+  }
+  return result
+}
+function getFieldType(name){
+  if(!dFieldList||!dFieldList.length)return'string'
+  const f=dFieldList.find(f=>f.name===name)
+  return f?f.type:'string'
+}
+function getTypeIcon(type){
+  const icons={
+    string:'<svg viewBox="0 0 16 16"><path d="m9.147 4.297-.255 1.455h.936l-.222 1.266h-.935l-.455 2.688c-.025.184-.013.323.036.417.048.093.17.144.365.151.075.004.23-.005.465-.027l-.13 1.32c-.3.097-.618.142-.957.135-.552-.007-.965-.17-1.239-.487-.274-.317-.386-.748-.335-1.293l.476-2.904h-.725l.216-1.266h.725l.254-1.455h1.78Z"/></svg>',
+    number:'<svg viewBox="0 0 16 16"><path d="M7.8 9.812h-.842l-.78 2.335H5.031l.78-2.335H4.6l.182-1.043h1.373l.507-1.504H5.454l.188-1.042h1.367l.792-2.37H8.94l-.792 2.37h.849l.792-2.37h1.145l-.792 2.37H11.4l-.182 1.042H9.8L9.293 8.77h1.248l-.183 1.043H8.946l-.775 2.335H7.026L7.8 9.812Zm-.5-1.043h.842l.513-1.504h-.849L7.3 8.77Z"/></svg>',
+    date:'<svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M13 11.567C13 12.36 12.36 13 11.567 13H4.433C3.64 13 3 12.36 3 11.567V4.433C3 3.64 3.64 3 4.433 3H6v-.495a.51.51 0 0 1 .412-.497L6.5 2c.276 0 .5.214.5.505V3h2v-.495a.51.51 0 0 1 .412-.497L9.5 2c.276 0 .5.214.5.505V3h1.567C12.36 3 13 3.64 13 4.433v7.134ZM4 6v5.33c0 .37.3.67.67.67h6.66c.37 0 .67-.3.67-.67V6H4Z"/></svg>',
+    boolean:'<svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 13A5 5 0 1 1 8 3a5 5 0 0 1 0 10Zm-2.828-2.172a4 4 0 0 1 5.656-5.656c.004.013-5.645 5.674-5.656 5.656Z"/></svg>',
+    ip:'<svg viewBox="0 0 16 16"><path d="M2 2h12v7H2V2zm1 1v5h10V3H3zm11 6v3H2v-3H1v4h14v-4h-1z"/></svg>'
+  }
+  return icons[type]||icons.string
+}
+function renderDocViewer(doc){
+  const id='dv'+Math.random().toString(36).slice(2,8)
+  const flat=flattenObj(doc)
+  const esc=v=>String(v??'').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+  const escAttr=v=>String(v??'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
+  let tableRows=flat.map(f=>{
+    const type=getFieldType(f.path)
+    const val=esc(f.value)
+    const raw=escAttr(f.value)
+    return `<tr>
+      <td class="doc-actions">
+        <button class="doc-action-btn" onclick="dFilterFor('${f.path}','${raw}')" title="Filter for value">＋</button>
+        <button class="doc-action-btn" onclick="dFilterOut('${f.path}','${raw}')" title="Filter out value">－</button>
+        <button class="doc-action-btn" onclick="dToggleColumn('${f.path}')" title="Toggle column in table">⊞</button>
+        <button class="doc-action-btn" onclick="dFilterExists('${f.path}')" title="Filter for field present">◉</button>
+      </td>
+      <td><span class="doc-field-icon">${getTypeIcon(type)}</span><span class="doc-field-name">${esc(f.path)}</span></td>
+      <td class="doc-value">${val.substring(0,600)}</td>
+    </tr>`
+  }).join('')
+  const jsonStr=JSON.stringify(doc,null,2).replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  return `<div class="doc-expanded">
+    <div class="doc-expand-header">
+      <span class="doc-expand-title">Expanded document</span>
+      <div class="doc-tabs">
+        <button class="doc-tab active" onclick="switchDocView('${id}','table')">Table</button>
+        <button class="doc-tab" onclick="switchDocView('${id}','json')">JSON</button>
+      </div>
+    </div>
+    <div class="doc-view-panel active" id="docTable-${id}">
+      <table class="doc-field-table"><tbody>${tableRows}</tbody></table>
+    </div>
+    <div class="doc-view-panel" id="docJson-${id}">
+      <pre class="doc-json-pre">${jsonStr}</pre>
+    </div>
+  </div>`
+}
+function switchDocView(id,view){
+  const tp=document.getElementById('docTable-'+id),jp=document.getElementById('docJson-'+id)
+  if(!tp||!jp)return
+  tp.classList.toggle('active',view==='table');jp.classList.toggle('active',view==='json')
+  const ex=tp.closest('.doc-expanded')
+  if(ex)ex.querySelectorAll('.doc-tab').forEach(t=>t.classList.toggle('active',t.textContent.trim().toLowerCase()===view))
+}
+function dFilterFor(field,value){
+  const inp=document.getElementById('dqlInput')
+  const ex=inp.value.trim();const f=`${field}: "${value}"`
+  inp.value=ex?`(${ex}) AND (${f})`:f;discoverSearch()
+}
+function dFilterOut(field,value){
+  const inp=document.getElementById('dqlInput')
+  const ex=inp.value.trim();const f=`NOT ${field}: "${value}"`
+  inp.value=ex?`(${ex}) AND (${f})`:f;discoverSearch()
+}
+function dFilterExists(field){
+  const inp=document.getElementById('dqlInput')
+  const ex=inp.value.trim();const f=`_exists_:${field}`
+  inp.value=ex?`(${ex}) AND (${f})`:f;discoverSearch()
+}
+function dToggleColumn(field){
+  const idx=dColumns.indexOf(field)
+  if(idx>=0)dColumns.splice(idx,1);else dColumns.push(field)
+  if(dColumns.length<1)dColumns=['@timestamp']
+  renderFields(dFieldList);discoverSearch()
 }
 
 async function discoverLoadHistogram(params){
