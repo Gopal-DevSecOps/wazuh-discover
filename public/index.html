@@ -420,7 +420,7 @@ loadGeo()
 
 // ==================== DISCOVER ====================
 let dColumns=['@timestamp','rule.id','rule.level','rule.description','agent.name']
-let dFieldList=[],dFieldCache=null
+let dFieldList=[],dFieldCache=null,dFilters=[]
 
 async function discoverLoadFields(){
   try{
@@ -468,11 +468,12 @@ function discoverAddColumn(){
 }
 
 async function discoverSearch(){
-  const q=document.getElementById('dqlInput').value.trim()
+  const q=buildDql()
   const timeRange=document.getElementById('dTime').value
   const limit=parseInt(document.getElementById('dLimit').value)||50
   const index=document.getElementById('dIndex').value
-  const params={q,limit,index}
+  const params={limit,index}
+  if(q)params.q=q
 
   if(timeRange!=='all'){
     const now=new Date()
@@ -599,20 +600,40 @@ function switchDocView(id,view){
   const ex=tp.closest('.doc-expanded')
   if(ex)ex.querySelectorAll('.doc-tab').forEach(t=>t.classList.toggle('active',t.textContent.trim().toLowerCase()===view))
 }
+function buildDql(){
+  const parts=[]
+  dFilters.forEach(f=>{
+    const v=String(f.value??'').replace(/"/g,'\\"')
+    if(f.type==='exists')parts.push(`_exists_:${f.field}`)
+    else if(f.negate)parts.push(`NOT ${f.field}: "${v}"`)
+    else parts.push(`${f.field}: "${v}"`)
+  })
+  const userQ=document.getElementById('dqlInput').value.trim()
+  if(userQ)parts.push(`(${userQ})`)
+  return parts.join(' AND ')
+}
+function renderFilterChips(){
+  if(!dFilters.length){document.getElementById('dChips').innerHTML='';return}
+  document.getElementById('dChips').innerHTML=`<div class="doc-chips">${dFilters.map((f,i)=>{
+    const label=f.type==='exists'?`${f.field}: *`:`${f.field}: "${f.value}"`
+    const icon=f.negate?'⊖':'⊕'
+    return `<span class="doc-chip">${icon} ${label} <span class="remove" onclick="dRemoveFilter(${i})">×</span></span>`
+  }).join('')}</div>`
+}
+function dRemoveFilter(i){
+  dFilters.splice(i,1);renderFilterChips();discoverSearch()
+}
 function dFilterFor(field,value){
-  const inp=document.getElementById('dqlInput')
-  const ex=inp.value.trim();const f=`${field}: "${value}"`
-  inp.value=ex?`(${ex}) AND (${f})`:f;discoverSearch()
+  dFilters.push({field,value,negate:false,type:'phrase'})
+  renderFilterChips();discoverSearch()
 }
 function dFilterOut(field,value){
-  const inp=document.getElementById('dqlInput')
-  const ex=inp.value.trim();const f=`NOT ${field}: "${value}"`
-  inp.value=ex?`(${ex}) AND (${f})`:f;discoverSearch()
+  dFilters.push({field,value,negate:true,type:'phrase'})
+  renderFilterChips();discoverSearch()
 }
 function dFilterExists(field){
-  const inp=document.getElementById('dqlInput')
-  const ex=inp.value.trim();const f=`_exists_:${field}`
-  inp.value=ex?`(${ex}) AND (${f})`:f;discoverSearch()
+  dFilters.push({field,value:'',negate:false,type:'exists'})
+  renderFilterChips();discoverSearch()
 }
 function dToggleColumn(field){
   const idx=dColumns.indexOf(field)
