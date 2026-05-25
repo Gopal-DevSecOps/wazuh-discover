@@ -619,8 +619,8 @@ function buildDql(){
   dFilters.forEach(f=>{
     const v=String(f.value??'').replace(/"/g,'\\"')
     if(f.type==='exists')parts.push(`_exists_:${f.field}`)
-    else if(f.negate)parts.push(`NOT ${f.field}:"${v}"`)
-    else parts.push(`${f.field}:"${v}"`)
+    else if(f.negate)parts.push(`-${f.field}:"${v}"`)
+    else parts.push(`+${f.field}:"${v}"`)
   })
   const userQ=document.getElementById('dqlInput').value.trim()
   if(userQ)parts.push(`(${userQ})`)
@@ -634,20 +634,24 @@ function renderFilterChips(){
     return `<span class="doc-chip">${icon} ${label} <span class="remove" onclick="dRemoveFilter(${i})">×</span></span>`
   }).join('')}</div>`
 }
+function dFilterKey(f){return f.field+'|'+f.value+'|'+f.negate+'|'+(f.type||'phrase')}
 function dRemoveFilter(i){
   dFilters.splice(i,1);renderFilterChips();discoverSearch()
 }
 function dFilterFor(field,value){
-  dFilters.push({field,value,negate:false,type:'phrase'})
-  renderFilterChips();discoverSearch()
+  const n={field,value:String(value??''),negate:false,type:'phrase'}
+  if(dFilters.some(f=>dFilterKey(f)===dFilterKey(n)))return
+  dFilters.push(n);renderFilterChips();discoverSearch()
 }
 function dFilterOut(field,value){
-  dFilters.push({field,value,negate:true,type:'phrase'})
-  renderFilterChips();discoverSearch()
+  const n={field,value:String(value??''),negate:true,type:'phrase'}
+  if(dFilters.some(f=>dFilterKey(f)===dFilterKey(n)))return
+  dFilters.push(n);renderFilterChips();discoverSearch()
 }
 function dFilterExists(field){
-  dFilters.push({field,value:'',negate:false,type:'exists'})
-  renderFilterChips();discoverSearch()
+  const n={field,value:'',negate:false,type:'exists'}
+  if(dFilters.some(f=>f.field===n.field&&f.type==='exists'))return
+  dFilters.push(n);renderFilterChips();discoverSearch()
 }
 function dToggleColumn(field){
   const idx=dColumns.indexOf(field)
