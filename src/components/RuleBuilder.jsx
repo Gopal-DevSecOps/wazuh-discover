@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   getGroups, getRulesForGroup, getAllRules,
   createGroup, updateGroup, deleteGroup,
-  createRule, updateRule, deleteRule, toggleRuleEnabled
+  createRule, updateRule, deleteRule, toggleRuleEnabled,
+  createId
 } from '../services/ruleStorage'
 import { evalRule, interpolateMessage } from '../services/ruleEngine'
 import { resolveField } from '../utils'
@@ -62,6 +63,9 @@ export default function RuleBuilder() {
   const [testResults, setTestResults] = useState(null)
   const [showTest, setShowTest] = useState(false)
   const [showOverview, setShowOverview] = useState(false)
+  const [showDashboard, setShowDashboard] = useState(false)
+  const [batchTestResults, setBatchTestResults] = useState(null)
+  const [batchTestLoading, setBatchTestLoading] = useState(false)
 
   const refresh = useCallback(() => {
     setGroups(getGroups())
@@ -229,6 +233,83 @@ export default function RuleBuilder() {
     }
   }
 
+  function handleDuplicate() {
+    if (!editing) return
+    const copy = JSON.parse(JSON.stringify(editing))
+    copy.id = createId()
+    copy.name = editing.name + ' (copy)'
+    copy.enabled = false
+    updateRule(copy.id, copy)
+    refresh()
+    setSelectedRuleId(copy.id)
+    setEditing(cleanRule(copy))
+    setDirty(false)
+  }
+
+  function handleExport() {
+    const data = { groups: getGroups(), rules: getAllRules() }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = 'soc_rules_export.json'; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function handleImport(file) {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result)
+        if (!data.groups || !data.rules) throw new Error('Invalid format')
+        localStorage.setItem('soc_rules', JSON.stringify(data))
+        refresh()
+        alert(`Imported ${data.rules.length} rules in ${data.groups.length} groups`)
+      } catch (err) { alert('Import failed: ' + err.message) }
+    }
+    reader.readAsText(file)
+  }
+
+  async function runBatchTest() {
+    setBatchTestLoading(true)
+    setBatchTestResults(null)
+    try {
+      const enabledRules = getAllRules().filter(r => r.enabled)
+      if (!enabledRules.length) { setBatchTestResults({ error: 'No enabled rules to test' }); setBatchTestLoading(false); return }
+      const d = await api('search', { limit: 50, sort: '@timestamp', order: 'desc' })
+      const alerts = d.results || []
+      const perRule = enabledRules.map(rule => {
+        const matched = alerts.filter(a => evalRule(rule, a).matched).length
+        return { id: rule.id, name: rule.name, groupId: rule.groupId, matched, total: alerts.length, pct: alerts.length ? ((matched / alerts.length) * 100).toFixed(0) : '0', overwrite: rule.overwrite, priority: rule.priority }
+      })
+      perRule.sort((a, b) => b.matched - a.matched)
+
+      const totalMatches = new Set()
+      const overwriteMap = {}
+      for (const alert of alerts) {
+        const matching = enabledRules.filter(r => { const result = evalRule(r, alert); totalMatches.add(r.id); return result.matched })
+        const sorted = matching.sort((a, b) => b.priority - a.priority)
+        const winner = sorted.find(r => r.overwrite) || sorted[0]
+        if (winner) overwriteMap[winner.id] = (overwriteMap[winner.id] || 0) + 1
+      }
+
+      setBatchTestResults({ perRule, alertsCount: alerts.length, totalRules: enabledRules.length, overwriteMap })
+    } catch (e) { setBatchTestResults({ error: e.message }) }
+    setBatchTestLoading(false)
+  }
+
+  function getDashboardStats() {
+    const a = getAllRules()
+    const g = getGroups()
+    const enabled = a.filter(r => r.enabled)
+    const byGroup = g.map(gr => ({ name: gr.name, count: a.filter(r => r.groupId === gr.id).length, enabled: enabled.filter(r => r.groupId === gr.id).length })).filter(x => x.count > 0)
+    const byPriority = { low: a.filter(r => r.priority < 50).length, medium: a.filter(r => r.priority >= 50 && r.priority <= 200).length, high: a.filter(r => r.priority > 200).length }
+    const byAction = {}
+    for (const r of a) { const t = r.actions?.[0]?.type || '-'; byAction[t] = (byAction[t] || 0) + 1 }
+    const overwriteCount = a.filter(r => r.overwrite).length
+    return { total: a.length, enabled: enabled.length, disabled: a.length - enabled.length, groups: g.length, byGroup, byPriority, byAction, overwriteCount }
+  }
+
   const selectedGroup = groups.find(g => g.id === openGroupId)
   const rulesList = openGroupId ? getRulesForGroup(openGroupId) : []
   const allRules = getAllRules()
@@ -240,11 +321,64 @@ export default function RuleBuilder() {
         <span className="text-[#9ca3af] dark:text-[#6b7280]">{allRules.length} rules, {allRules.filter(r => r.enabled).length} enabled</span>
         <button
           onClick={() => setShowOverview(!showOverview)}
-          className={`gbtn text-xs ml-auto ${showOverview ? 'gbtn-primary' : ''}`}
+          className={`gbtn text-xs ${showOverview ? 'gbtn-primary' : ''}`}
         >
-          {showOverview ? '\u270E Editor' : '\uD83D\uDCCB All Rules'}
+          {showOverview ? '\u270E Editor' : '\uD83D\uDCCB'}
         </button>
+        <button onClick={() => setShowDashboard(true)} className="gbtn text-xs">📊 Stats</button>
+        <button onClick={handleExport} className="gbtn text-xs">📤 Export</button>
+        <label className="gbtn text-xs cursor-pointer">
+          📥 Import
+          <input type="file" accept=".json" onChange={e => handleImport(e.target.files?.[0])} className="hidden" />
+        </label>
       </div>
+      {showDashboard && (
+        <div className="border-b border-[#e5e7eb] dark:border-[#2d3140] p-3 bg-[#f9fafb] dark:bg-[#1a1c23]">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] uppercase font-semibold text-[#9ca3af] dark:text-[#6b7280]">Rules Dashboard</span>
+            <button onClick={() => setShowDashboard(false)} className="text-[#9ca3af] hover:text-soc-blue text-xs">✕</button>
+          </div>
+          {(() => {
+            const s = getDashboardStats()
+            return (
+              <div className="grid grid-cols-4 gap-2 text-xs">
+                <div className="gcard p-2 text-center">
+                  <div className="text-lg font-bold text-soc-stext dark:text-soc-darkstext">{s.total}</div>
+                  <div className="text-[10px] text-[#9ca3af]">Total Rules</div>
+                </div>
+                <div className="gcard p-2 text-center">
+                  <div className="text-lg font-bold text-green-600">{s.enabled}</div>
+                  <div className="text-[10px] text-[#9ca3af]">Enabled</div>
+                </div>
+                <div className="gcard p-2 text-center">
+                  <div className="text-lg font-bold text-[#9ca3af]">{s.disabled}</div>
+                  <div className="text-[10px] text-[#9ca3af]">Disabled</div>
+                </div>
+                <div className="gcard p-2 text-center">
+                  <div className="text-lg font-bold text-amber-500">{s.overwriteCount}</div>
+                  <div className="text-[10px] text-[#9ca3af]">Overwrite</div>
+                </div>
+                <div className="gcard p-2 col-span-2">
+                  <div className="text-[10px] font-semibold text-[#9ca3af] mb-1">By Group</div>
+                  {s.byGroup.map(g => (
+                    <div key={g.name} className="flex items-center gap-2 text-[11px]">
+                      <span className="flex-1 truncate">{g.name}</span>
+                      <span className="text-green-600">{g.enabled}</span>
+                      <span className="text-[#9ca3af]">/ {g.count}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="gcard p-2 col-span-2">
+                  <div className="text-[10px] font-semibold text-[#9ca3af] mb-1">By Priority</div>
+                  <div className="flex items-center gap-2 text-[11px]">{'Low (<50):'} <span className="font-bold">{s.byPriority.low}</span></div>
+                  <div className="flex items-center gap-2 text-[11px]">{'Medium (50-200):'} <span className="font-bold">{s.byPriority.medium}</span></div>
+                  <div className="flex items-center gap-2 text-[11px]">{'High (>200):'} <span className="font-bold">{s.byPriority.high}</span></div>
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+      )}
       {showOverview && (
         <div className="border-b border-[#e5e7eb] dark:border-[#2d3140] p-2 bg-[#f9fafb] dark:bg-[#1a1c23]">
           <div className="max-h-48 overflow-y-auto space-y-0.5 text-xs">
@@ -499,10 +633,34 @@ export default function RuleBuilder() {
               <div className="gcard p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] uppercase font-semibold text-[#9ca3af] dark:text-[#6b7280]">Test Against Live Data</span>
-                  <button onClick={runTest} disabled={testLoading} className="gbtn text-xs">
-                    {testLoading ? 'Testing...' : '\u25B6 Run Test'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={runBatchTest} disabled={batchTestLoading} className="gbtn text-xs">
+                      {batchTestLoading ? 'Testing...' : '\u26A1 Test All Rules'}
+                    </button>
+                    <button onClick={runTest} disabled={testLoading} className="gbtn text-xs">
+                      {testLoading ? 'Testing...' : '\u25B6 Run Test'}
+                    </button>
+                  </div>
                 </div>
+                {batchTestResults && !batchTestResults.error && (
+                  <div className="mb-2 p-2 bg-[#f9fafb] dark:bg-[#1a1c23] rounded-lg text-xs">
+                    <div className="text-[10px] text-[#9ca3af] mb-1">Tested {batchTestResults.totalRules} rules against {batchTestResults.alertsCount} alerts</div>
+                    {batchTestResults.perRule.slice(0, 10).map(r => {
+                      const grp = groups.find(g => g.id === r.groupId)
+                      return (
+                        <div key={r.id} className="flex items-center gap-2 py-0.5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${r.matched > 0 ? 'bg-green-500' : 'bg-[#9ca3af]'}`} />
+                          <span className="text-[10px] text-[#6b7280] w-12 truncate">{grp?.name}</span>
+                          <span className="flex-1 truncate">{r.name}</span>
+                          <span className="font-mono text-[10px]">{r.matched}/{r.total} ({r.pct}%)</span>
+                          {r.overwrite && <span className="text-[9px] text-amber-500 font-bold">OV</span>}
+                        </div>
+                      )
+                    })}
+                    {batchTestResults.perRule.length > 10 && <div className="text-[10px] text-[#9ca3af] pt-1">...and {batchTestResults.perRule.length - 10} more</div>}
+                  </div>
+                )}
+                {batchTestResults?.error && <div className="text-xs text-red-500 mb-2">{batchTestResults.error}</div>}
                 {showTest && testResults && !Array.isArray(testResults) && (
                   <div className="text-xs text-red-500">{(testResults).error || 'Test failed'}</div>
                 )}
@@ -557,8 +715,9 @@ export default function RuleBuilder() {
                 )}
               </div>
 
-              <div className="flex items-center gap-3 pt-2 border-t border-[#e5e7eb] dark:border-[#2d3140]">
+              <div className="flex items-center gap-3 pt-2 border-t border-[#e5e7eb] dark:border-[#2d3140] flex-wrap">
                 <button onClick={handleSave} className="gbtn-primary text-xs">Save Rule</button>
+                <button onClick={handleDuplicate} className="gbtn text-xs">Duplicate</button>
                 <button onClick={handleDelete} className="gbtn text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">Delete Rule</button>
                 <button onClick={() => {
                   toggleRuleEnabled(editing.id)
