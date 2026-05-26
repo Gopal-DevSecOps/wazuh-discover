@@ -37,7 +37,7 @@ function cleanRule(r) {
     ...r, name: r.name || '',
     conditionLogic: r.conditionLogic === 'OR' ? 'OR' : 'AND',
     conditions: (r.conditions || []).map(c => ({ ...c, field: c.field || 'rule.description', operator: c.operator || 'contains', value: c.value || '', logic: c.logic || 'AND' })),
-    actions: (r.actions?.length ? r.actions : [{ type: 'alert', params: { severity: 'high', level: null, message: '' } }]).map(a => ({ ...a, params: a.params || {} })),
+    actions: (r.actions?.length ? r.actions : [{ type: 'alert', params: { severity: 'high', message: '' } }]).map(a => ({ ...a, params: a.params || {} })),
     enabled: r.enabled !== false
   }
 }
@@ -232,29 +232,19 @@ export default function RuleBuilder() {
     return 'info'
   }
 
-  async function runTest() {
+  async function runTestSingle() {
     if (!editing) return
     setTestLoading(true); setTestResults(null)
     try {
-      const d = await api('search', { limit: 50, sort: '@timestamp', order: 'desc' })
-      const results = (d.results || []).map(doc => {
-        const result = evalRule(editing, doc)
-        const actions = result.matched ? (editing.actions || []).map(a => ({
-          ...a, computedSeverity: a.type === 'alert' ? computeSeverity(a, doc) : null,
-          interpolated: a.type === 'alert' ? interpolateMessage(a.params?.message || '', doc) : null
-        })) : []
-        return { timestamp: resolveField(doc, '@timestamp'), ruleDesc: resolveField(doc, 'rule.description'), ruleLevel: resolveField(doc, 'rule.level'), ...result, actions }
-      })
-      setTestResults(results)
-    } catch (e) { setTestResults({ error: e.message }) }
-    setTestLoading(false)
-  }
-
-  function runTestSingle() {
-    if (!editing || !testJson.trim()) return
-    setTestLoading(true); setTestResults(null)
-    try {
-      const doc = JSON.parse(testJson)
+      let doc
+      if (testJson.trim()) {
+        doc = JSON.parse(testJson)
+      } else {
+        const d = await api('search', { limit: 1, sort: '@timestamp', order: 'desc' })
+        if (!d?.results?.length) { setTestResults({ error: 'No alerts found. Paste JSON manually.' }); setTestLoading(false); return }
+        doc = d.results[0]
+        setTestJson(JSON.stringify(doc, null, 2))
+      }
       const result = evalRule(editing, doc)
       const actions = result.matched ? (editing.actions || []).map(a => ({
         ...a, computedSeverity: a.type === 'alert' ? computeSeverity(a, doc) : null,
@@ -408,10 +398,10 @@ export default function RuleBuilder() {
                       <div className="flex items-center gap-2 text-xs flex-1 flex-wrap min-w-0">
                         <div className="relative">
                           <select className="ginput w-20 sm:w-22 pl-6 py-1.5 font-medium appearance-none cursor-pointer text-[11px] sm:text-xs" value={act.type} onChange={e => {
-                            if (e.target.value === 'alert') updAction(idx, { type: 'alert', params: { severity: 'high', level: null, message: '' } })
+                            if (e.target.value === 'alert') updAction(idx, { type: 'alert', params: { severity: 'high', message: '' } })
                             else updAction(idx, { type: 'ignore', params: {} })
                           }}>
-                            <option value="alert">alert</option>
+                            <option value="alert">create</option>
                             <option value="ignore">ignore</option>
                           </select>
                           <span className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none">{act.type === 'alert' && <SeverityDot sev={act.params?.severity || 'high'} />}</span>
@@ -421,7 +411,6 @@ export default function RuleBuilder() {
                             <select className="ginput w-22 sm:w-24 py-1.5 text-[11px] sm:text-xs" value={act.params?.severity || 'high'} onChange={e => updAction(idx, { params: { ...act.params, severity: e.target.value } })}>
                               {SEVERITIES.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
-                            <input type="number" className="ginput w-14 sm:w-16 py-1.5 text-center font-mono text-[11px] sm:text-xs" placeholder="Lvl" min="0" max="15" value={act.params?.level ?? ''} onChange={e => updAction(idx, { params: { ...act.params, level: e.target.value ? parseInt(e.target.value) : null } })} title="Override level 0-15" />
                             <input className="ginput flex-1 py-1.5 font-mono text-[11px] min-w-[120px]" placeholder="Message ({{field}})" value={act.params?.message || ''} onChange={e => updAction(idx, { params: { ...act.params, message: e.target.value } })} />
                           </>
                         ) : (
@@ -445,24 +434,20 @@ export default function RuleBuilder() {
                     <svg className="w-3.5 h-3.5 text-[#9ca3af]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                     <span className="text-[11px] uppercase font-semibold text-[#9ca3af] tracking-wider">Test</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={runTest} disabled={testLoading}
-                      className={`gbtn text-xs flex items-center gap-1 ${testLoading ? 'opacity-60 cursor-wait' : ''} bg-[#f3f4f6] dark:bg-[#2d3140] hover:bg-[#e5e7eb] dark:hover:bg-[#374151] transition-all`}>
-                      <svg className={`w-3 h-3 ${testLoading ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        {testLoading ? <><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></> : <path d="M5 3l14 9-14 9V3z"/>}
-                      </svg>
-                      {testLoading ? '...' : 'Batch 50'}
-                    </button>
-                    <button onClick={runTestSingle} disabled={testLoading || !testJson.trim()}
-                      className={`gbtn text-xs flex items-center gap-1 ${testLoading ? 'opacity-60 cursor-wait' : ''} bg-[#3b82f6] text-white hover:bg-[#2563eb] active:bg-[#1d4ed8] shadow-sm transition-all`}>
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 3l14 9-14 9V3z"/></svg>
-                      Test
-                    </button>
-                  </div>
+                  <button onClick={runTestSingle} disabled={testLoading}
+                    className={`gbtn text-xs flex items-center gap-1 ${testLoading ? 'opacity-60 cursor-wait' : ''} bg-[#3b82f6] text-white hover:bg-[#2563eb] active:bg-[#1d4ed8] shadow-sm transition-all`}>
+                    <svg className={`w-3 h-3 ${testLoading ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      {testLoading ? <><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></> : <path d="M5 3l14 9-14 9V3z"/>}
+                    </svg>
+                    {testLoading ? 'Testing...' : 'Test Rule'}
+                  </button>
                 </div>
                 <div className="p-3 sm:p-4 space-y-3">
-                  <textarea className="ginput w-full p-2 text-[10px] font-mono leading-relaxed resize-none" rows={3} placeholder="Paste JSON doc to test against a single event..."
-                    value={testJson} onChange={e => setTestJson(e.target.value)} />
+                  <div className="flex items-start gap-2">
+                    <textarea className="ginput w-full p-2 text-[10px] font-mono leading-relaxed resize-none" rows={3}
+                      placeholder={'Paste any alert JSON here, or leave empty → auto-fetches 1 sample alert'}
+                      value={testJson} onChange={e => setTestJson(e.target.value)} />
+                  </div>
                   {testResults && !Array.isArray(testResults) && (
                     <div className="flex items-center gap-2 text-xs text-red-500 bg-red-50 dark:bg-red-900/10 rounded-lg px-3 py-2">
                       <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -509,7 +494,7 @@ export default function RuleBuilder() {
                                         : 'bg-[#f3f4f6] dark:bg-[#2d3140] text-[#6b7280] dark:text-[#9ca3af]'
                                     }`}>
                                       {a.type === 'alert' && <SeverityDot sev={a.computedSeverity || 'high'} />}
-                                      {a.type.toUpperCase()}
+                                      {a.type === 'alert' ? 'CREATE' : 'IGNORE'}
                                       {a.type === 'alert' && a.interpolated && <span className="opacity-70">: {a.interpolated}</span>}
                                     </span>
                                   ))}
