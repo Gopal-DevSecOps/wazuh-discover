@@ -37,7 +37,6 @@ export default function RuleViewTab() {
           if (lvl != null) d.rule = { ...d.rule, level: lvl }
           if (msg) d.rule = { ...d.rule, description: msg }
         }
-        d._ruleApplied = { ruleName: top.rule.name, severity: sev, level: lvl, message: msg }
         out.push(d)
         mm[idx] = { ruleName: top.rule.name, severity: sev, level: lvl, message: msg, priority: top.rule.priority }
         mc++
