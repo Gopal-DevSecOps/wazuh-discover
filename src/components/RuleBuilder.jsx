@@ -114,6 +114,25 @@ function SeverityDot({ sev }) {
   return <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.dot }} />
 }
 
+function conditionsToQuery(conditions, logic) {
+  const parts = conditions.map(c => {
+    const v = c.value?.replace(/[\\"'(){}[\]^~:]/g, '\\$&')
+    if (!v && c.operator !== 'exists') return null
+    switch (c.operator) {
+      case 'equals': return `${c.field}:${v}`
+      case 'contains': return `${c.field}:*${v}*`
+      case 'startsWith': return `${c.field}:${v}*`
+      case 'endsWith': return `${c.field}:*${v}`
+      case 'gt': return `${c.field}:[${v} TO *]`
+      case 'lt': return `${c.field}:[* TO ${v}]`
+      case 'exists': return `_exists_:${c.field}`
+      default: return null
+    }
+  }).filter(Boolean)
+  if (!parts.length) return ''
+  return parts.join(` ${logic === 'OR' ? 'OR' : 'AND'} `)
+}
+
 function Kbd({ children }) {
   return <kbd className="hidden lg:inline px-1 py-0.5 text-[9px] font-mono rounded bg-[#f3f4f6] dark:bg-[#2d3140] text-[#9ca3af] border border-[#e5e7eb] dark:border-[#2d3140]">{children}</kbd>
 }
@@ -236,22 +255,17 @@ export default function RuleBuilder() {
     if (!editing) return
     setTestLoading(true); setTestResults(null)
     try {
-      let results = [], limit = 20
-      while (results.length === 0 && limit <= 200) {
-        const d = await api('search', { limit, sort: '@timestamp', order: 'desc' })
-        if (!d?.results?.length) break
-        results = d.results.map(doc => {
-          const result = evalRule(editing, doc)
-          const actions = result.matched ? (editing.actions || []).map(a => ({
-            ...a, computedSeverity: a.type === 'alert' ? computeSeverity(a, doc) : null,
-            interpolated: a.type === 'alert' ? interpolateMessage(a.params?.message || '', doc) : null
-          })) : []
-          return { timestamp: resolveField(doc, '@timestamp'), ruleDesc: resolveField(doc, 'rule.description'), ruleLevel: resolveField(doc, 'rule.level'), ...result, actions }
-        })
-        const hasAnyField = results.some(r => r.details?.some(d => !d.condition.missing))
-        if (hasAnyField || limit >= 200) break
-        limit = 200
-      }
+      const q = conditionsToQuery(editing.conditions, editing.conditionLogic)
+      const d = await api('search', { limit: 20, sort: '@timestamp', order: 'desc', q })
+      if (!d?.results?.length) { setTestResults({ error: 'No matching alerts found for your conditions' }); setTestLoading(false); return }
+      const results = d.results.map(doc => {
+        const result = evalRule(editing, doc)
+        const actions = result.matched ? (editing.actions || []).map(a => ({
+          ...a, computedSeverity: a.type === 'alert' ? computeSeverity(a, doc) : null,
+          interpolated: a.type === 'alert' ? interpolateMessage(a.params?.message || '', doc) : null
+        })) : []
+        return { timestamp: resolveField(doc, '@timestamp'), ruleDesc: resolveField(doc, 'rule.description'), ruleLevel: resolveField(doc, 'rule.level'), ...result, actions }
+      })
       setTestResults(results)
     } catch (e) { setTestResults({ error: e.message }) }
     setTestLoading(false)
@@ -455,7 +469,7 @@ export default function RuleBuilder() {
                     <button onClick={runTestBatch} disabled={testLoading}
                       className={`gbtn text-xs flex items-center gap-1 ${testLoading ? 'opacity-60 cursor-wait' : ''} bg-[#f3f4f6] dark:bg-[#2d3140] hover:bg-[#e5e7eb] dark:hover:bg-[#374151] transition-all`}>
                       <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                      Batch 20
+                      Batch (filtered)
                     </button>
                     <button onClick={runTestJson} disabled={testLoading || !testJson.trim()}
                       className={`gbtn text-xs flex items-center gap-1 ${testLoading ? 'opacity-60 cursor-wait' : ''} bg-[#3b82f6] text-white hover:bg-[#2563eb] active:bg-[#1d4ed8] shadow-sm transition-all`}>
@@ -476,13 +490,11 @@ export default function RuleBuilder() {
                   )}
                   {testResults && Array.isArray(testResults) && (
                     <>
-                      <div className="flex items-center gap-2 mb-3 flex-wrap">
+                      <div className="flex items-center gap-2 mb-3">
                         <div className="flex items-center gap-1.5 text-xs">
                           <span className="font-semibold text-green-600 dark:text-green-400">{testResults.filter(r => r.matched).length}</span>
                           <span className="text-[#9ca3af]">/ {testResults.length} matched</span>
                         </div>
-                        <span className="text-[9px] text-[#9ca3af]">|</span>
-                        <span className="text-[9px] text-[#9ca3af]">{testResults.filter(r => r.details?.some(d => !d.condition.missing)).length} have this field</span>
                         <div className="flex-1 h-1.5 bg-[#f3f4f6] dark:bg-[#2d3140] rounded-full overflow-hidden min-w-[60px]">
                           <div className="h-full bg-green-500 rounded-full transition-all duration-300" style={{ width: `${(testResults.filter(r => r.matched).length / testResults.length) * 100}%` }} />
                         </div>
