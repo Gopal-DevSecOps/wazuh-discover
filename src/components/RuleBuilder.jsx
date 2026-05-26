@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { getAllRules, createRule, updateRule, deleteRule, toggleRuleEnabled } from '../services/ruleStorage'
 import { evalRule, interpolateMessage } from '../services/ruleEngine'
@@ -51,6 +51,38 @@ function LogicBadge({ logic, onClick }) {
       <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d={isOr ? "M5 12h14M12 5v14" : "M5 12h14"}/></svg>
       {logic || 'AND'}
     </button>
+  )
+}
+
+function FieldPicker({ value, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState(value || '')
+  const ref = useRef(null)
+
+  const filtered = FIELDS.filter(f => f.toLowerCase().includes(query.toLowerCase()))
+
+  useEffect(() => {
+    function handleClick(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handleClick); return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  useEffect(() => { setQuery(value || '') }, [value])
+
+  return (
+    <div className="relative flex-1" ref={ref}>
+      <input className="w-full bg-transparent outline-none text-soc-stext dark:text-soc-darkstext py-1.5" placeholder="field"
+        value={query} onFocus={() => setOpen(true)}
+        onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true) }} />
+      {open && (
+        <div className="absolute left-0 top-full mt-1 w-full bg-white dark:bg-[#1a1d27] border border-[#e5e7eb] dark:border-[#2d3140] rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
+          {filtered.map(f => (
+            <button key={f} type="button" className="w-full text-left px-3 py-1.5 text-xs hover:bg-[#f3f4f6] dark:hover:bg-[#2d3140] text-soc-stext dark:text-soc-darkstext truncate"
+              onMouseDown={() => { setQuery(f); onChange(f); setOpen(false) }}>{f}</button>
+          ))}
+          {filtered.length === 0 && <div className="px-3 py-2 text-[10px] text-[#9ca3af] italic">Custom: {query}</div>}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -251,7 +283,7 @@ export default function RuleBuilder() {
                           )}
                           <div className={`flex items-center gap-2 text-xs ${idx > 0 ? 'mt-0' : ''}`}>
                             <div className="flex items-center gap-1.5 flex-1 bg-[#f9fafb] dark:bg-[#0f1117] rounded-lg border border-[#e5e7eb] dark:border-[#2d3140] p-1 pl-2.5">
-                              <input className="flex-1 bg-transparent outline-none text-soc-stext dark:text-soc-darkstext py-1.5" list="flist" value={cond.field} onChange={e => updCondition(idx, { field: e.target.value })} placeholder="field" />
+                              <FieldPicker value={cond.field} onChange={v => updCondition(idx, { field: v })} />
                               <span className="text-[#d1d5db] dark:text-[#4b5563]">|</span>
                               <select className="bg-transparent outline-none text-soc-stext dark:text-soc-darkstext w-24 py-1.5 cursor-pointer" value={cond.operator} onChange={e => updCondition(idx, { operator: e.target.value })}>
                                 {OPERATORS.map(o => <option key={o} value={o}>{o}</option>)}
@@ -267,7 +299,7 @@ export default function RuleBuilder() {
                       ))}
                     </div>
                   )}
-                  <datalist id="flist">{FIELDS.map(f => <option key={f} value={f} />)}</datalist>
+
                 </div>
               </div>
 
