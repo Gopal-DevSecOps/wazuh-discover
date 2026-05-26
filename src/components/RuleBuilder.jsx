@@ -15,12 +15,19 @@ const FIELDS = [
   { value: 'rule.id', label: 'rule.id' },
   { value: 'rule.level', label: 'rule.level' },
   { value: 'rule.category', label: 'rule.category' },
+  { value: 'rule.groups', label: 'rule.groups' },
   { value: 'agent.name', label: 'agent.name' },
   { value: 'agent.id', label: 'agent.id' },
+  { value: 'agent.ip', label: 'agent.ip' },
   { value: 'data.srcip', label: 'data.srcip' },
   { value: 'data.dstip', label: 'data.dstip' },
   { value: 'data.url', label: 'data.url' },
-  { value: 'location', label: 'location' }
+  { value: 'decoder.name', label: 'decoder.name' },
+  { value: 'full_log', label: 'full_log' },
+  { value: 'location', label: 'location' },
+  { value: 'input.type', label: 'input.type' },
+  { value: 'predecoder.program_name', label: 'predecoder.program_name' },
+  { value: 'predecoder.hostname', label: 'predecoder.hostname' }
 ]
 
 const OPERATORS = ['equals', 'contains', 'regex', 'startsWith', 'endsWith', 'gt', 'lt', 'inList', 'exists']
