@@ -1,31 +1,5 @@
 import { resolveField } from '../utils'
 
-function ipToInt(ip) {
-  try {
-    const parts = ip.trim().split('.')
-    if (parts.length !== 4) return null
-    return ((+parts[0] << 24) + (+parts[1] << 16) + (+parts[2] << 8) + +parts[3]) >>> 0
-  } catch { return null }
-}
-
-function cidrMatch(ip, cidrList) {
-  if (!ip || !cidrList.length) return false
-  const ips = Array.isArray(ip) ? ip : [ip]
-  return cidrList.some(cidr => {
-    try {
-      const [rangeIp, bits] = cidr.trim().split('/')
-      const mask = bits ? ~0 << (32 - +bits) : ~0
-      const rangeInt = ipToInt(rangeIp)
-      if (rangeInt === null) return false
-      const network = rangeInt & mask
-      return ips.some(i => {
-        const ipInt = ipToInt(i)
-        return ipInt !== null && (ipInt & mask) === network
-      })
-    } catch { return false }
-  })
-}
-
 function evalOperator(fieldVal, operator, condVal) {
   const fv = fieldVal ?? ''
   switch (operator) {
@@ -64,13 +38,7 @@ export function evalCondition(condition, doc) {
 }
 
 export function evalRule(rule, doc) {
-  const { conditions, conditionLogic, ignoreIps, actions } = rule
-
-  if (ignoreIps && ignoreIps.length > 0) {
-    const srcip = resolveField(doc, 'data.srcip')
-    const dstip = resolveField(doc, 'data.dstip')
-    if (cidrMatch(srcip || dstip, ignoreIps)) return { matched: false, skipped: 'ignoreIp', details: [] }
-  }
+  const { conditions, conditionLogic, actions } = rule
 
   if (!conditions || conditions.length === 0) {
     return { matched: true, details: [], actions: actions || [] }
@@ -93,7 +61,7 @@ export function evaluateAllRules(rules, doc) {
 
   const matches = enabled
     .map(rule => ({ rule, result: evalRule(rule, doc) }))
-    .filter(m => m.result.matched && !m.result.skipped)
+    .filter(m => m.result.matched)
 
   if (matches.length === 0) return { matched: false, matches: [] }
 
@@ -115,8 +83,6 @@ export function evaluateAllRules(rules, doc) {
     }
   }
 
-  const highestPriority = sorted[0].rule.priority
-
   return {
     matched: true,
     matches: finalMatches.map(m => ({
@@ -126,7 +92,7 @@ export function evaluateAllRules(rules, doc) {
     })),
     actions: allActions,
     overwritten: !!overwriteRule,
-    highestPriority
+    highestPriority: sorted[0].rule.priority
   }
 }
 
