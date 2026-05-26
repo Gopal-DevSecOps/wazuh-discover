@@ -134,7 +134,18 @@ function DocViewer({ doc }) {
   )
 }
 
-export default function ResultsTable() {
+function RuleBadge({ severity, name }) {
+  const cls = ({
+    critical: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 ring-1 ring-red-400/30',
+    high: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 ring-1 ring-orange-400/30',
+    medium: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 ring-1 ring-yellow-400/30',
+    low: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 ring-1 ring-green-400/30',
+    info: 'bg-gray-100 text-gray-600 dark:bg-gray-800/40 dark:text-gray-400 ring-1 ring-gray-400/20'
+  })[severity] || ''
+  return <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${cls}`}><span className="shrink-0">{'\u2699'}</span><span className="truncate max-w-[120px]">{name}</span></span>
+}
+
+export default function ResultsTable({ ruleMatches = null }) {
   const { results, total, columns, toggleColumn, moveColumn, doSort, sortField, sortOrder, loading, error, isDark } = useApp()
   const [expanded, setExpanded] = React.useState({})
   const toggleRow = id => setExpanded(prev => ({ ...prev, [id]: !prev[id] }))
@@ -153,6 +164,13 @@ export default function ResultsTable() {
           <thead>
             <tr className="bg-soc-bg dark:bg-soc-darkbg">
               <th className="p-0 w-7"></th>
+              {ruleMatches !== null && (
+                <th className="p-0 border-b border-soc-border dark:border-soc-darkborder w-[130px]">
+                  <div className="th-wrap flex items-center gap-1 px-1.5 py-1">
+                    <span className="font-semibold text-purple-600 dark:text-purple-400 text-xxs">Rule</span>
+                  </div>
+                </th>
+              )}
               {columns.map(c => (
                 <th key={c} className="p-0 border-b border-soc-border dark:border-soc-darkborder">
                   <div className="th-wrap flex items-center gap-1 px-1.5 py-1">
@@ -174,13 +192,25 @@ export default function ResultsTable() {
             {results.map((row, i) => {
               const rowId = String(i)
               const isExp = expanded[rowId]
+              const match = ruleMatches?.[i]
+              const sev = match?.severity
+              const highlightClass = sev ? ({
+                critical: 'bg-red-50/40 dark:bg-red-900/10',
+                high: 'bg-orange-50/40 dark:bg-orange-900/10',
+                medium: 'bg-yellow-50/40 dark:bg-yellow-900/10',
+                low: 'bg-green-50/40 dark:bg-green-900/10',
+                info: ''
+              })[sev] || '' : ''
               return (
                 <React.Fragment key={rowId}>
                   <tr
                     onClick={() => toggleRow(rowId)}
-                    className="cursor-pointer border-b border-soc-border/50 dark:border-soc-darkborder/50 hover:bg-soc-bg/50 dark:hover:bg-soc-darkbg/50 transition-colors"
+                    className={`cursor-pointer border-b border-soc-border/50 dark:border-soc-darkborder/50 hover:bg-soc-bg/50 dark:hover:bg-soc-darkbg/50 transition-colors ${highlightClass}`}
                   >
-                    <td className="px-1 py-1 text-center text-[10px] text-soc-stext dark:text-soc-darkstext">{isExp ? '\u25BC' : '\u25B6'}</td>
+                    <td className="px-1 py-1 text-center text-[10px] text-soc-stext dark:text-soc-darkstext">
+                      {match ? <span className="text-purple-500 mr-0.5" title={`Rule: ${match.ruleName}`}>{'\u2699'}</span> : null}
+                      {isExp ? '\u25BC' : '\u25B6'}
+                    </td>
                     {columns.map(c => {
                       let v = resolveField(row, c)
                       const raw = String(v ?? '')
@@ -197,10 +227,15 @@ export default function ResultsTable() {
                         </td>
                       )
                     })}
+                    {ruleMatches !== null && (
+                      <td className="px-1.5 py-1">
+                        {match ? <RuleBadge severity={match.severity} name={match.ruleName} /> : <span className="text-soc-stext/40 dark:text-soc-darkstext/40">{'\u2014'}</span>}
+                      </td>
+                    )}
                   </tr>
                   {isExp && (
                     <tr>
-                      <td colSpan={columns.length + 1} className="p-0">
+                      <td colSpan={columns.length + 1 + (ruleMatches !== null ? 1 : 0)} className="p-0">
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} transition={{ duration: 0.15 }}>
                           <DocViewer doc={row} />
                         </motion.div>
