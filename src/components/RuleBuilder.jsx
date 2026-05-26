@@ -16,18 +16,55 @@ const FIELDS = [
   { value: 'rule.level', label: 'rule.level' },
   { value: 'rule.category', label: 'rule.category' },
   { value: 'rule.groups', label: 'rule.groups' },
+  { value: 'rule.firedtimes', label: 'rule.firedtimes' },
+  { value: 'rule.mail', label: 'rule.mail' },
+  { value: 'rule.gpg13', label: 'rule.gpg13' },
+  { value: 'rule.gdpr', label: 'rule.gdpr' },
   { value: 'agent.name', label: 'agent.name' },
   { value: 'agent.id', label: 'agent.id' },
   { value: 'agent.ip', label: 'agent.ip' },
   { value: 'data.srcip', label: 'data.srcip' },
   { value: 'data.dstip', label: 'data.dstip' },
   { value: 'data.url', label: 'data.url' },
+  { value: 'data.status', label: 'data.status' },
+  { value: 'data.action', label: 'data.action' },
+  { value: 'data.user', label: 'data.user' },
+  { value: 'data.uid', label: 'data.uid' },
+  { value: 'data.gid', label: 'data.gid' },
+  { value: 'data.srcport', label: 'data.srcport' },
+  { value: 'data.dstport', label: 'data.dstport' },
+  { value: 'data.protocol', label: 'data.protocol' },
+  { value: 'data.system_name', label: 'data.system_name' },
+  { value: 'data.host', label: 'data.host' },
+  { value: 'data.original_url', label: 'data.original_url' },
+  { value: 'data.audit_id', label: 'data.audit_id' },
+  { value: 'data.file.path', label: 'data.file.path' },
+  { value: 'data.file.name', label: 'data.file.name' },
+  { value: 'data.file.size', label: 'data.file.size' },
+  { value: 'data.file.perm', label: 'data.file.perm' },
+  { value: 'data.file.owner', label: 'data.file.owner' },
+  { value: 'data.win.eventdata', label: 'data.win.eventdata' },
+  { value: 'data.win.system.segment', label: 'data.win.system.segment' },
+  { value: 'data.ssh.method', label: 'data.ssh.method' },
+  { value: 'data.ssh.connection', label: 'data.ssh.connection' },
+  { value: 'data.ssh.auth', label: 'data.ssh.auth' },
+  { value: 'data.vulnerability', label: 'data.vulnerability' },
+  { value: 'data.integration', label: 'data.integration' },
   { value: 'decoder.name', label: 'decoder.name' },
+  { value: 'decoder.parent', label: 'decoder.parent' },
   { value: 'full_log', label: 'full_log' },
   { value: 'location', label: 'location' },
   { value: 'input.type', label: 'input.type' },
   { value: 'predecoder.program_name', label: 'predecoder.program_name' },
-  { value: 'predecoder.hostname', label: 'predecoder.hostname' }
+  { value: 'predecoder.hostname', label: 'predecoder.hostname' },
+  { value: 'predecoder.timestamp', label: 'predecoder.timestamp' },
+  { value: 'manager.name', label: 'manager.name' },
+  { value: '@timestamp', label: '@timestamp' },
+  { value: 'timestamp', label: 'timestamp' },
+  { value: 'id', label: 'id' },
+  { value: '_id', label: '_id' },
+  { value: '_index', label: '_index' },
+  { value: '_score', label: '_score' }
 ]
 
 const OPERATORS = ['equals', 'contains', 'regex', 'startsWith', 'endsWith', 'gt', 'lt', 'inList', 'exists']
@@ -537,9 +574,10 @@ export default function RuleBuilder() {
                         <span className="text-[10px] font-bold text-soc-blue dark:text-blue-400 w-8 shrink-0 text-center">{editing.conditionLogic}</span>
                       )}
                       {idx === 0 && <span className="w-8 shrink-0" />}
-                      <select className="ginput flex-1 min-w-0" value={cond.field} onChange={e => updateCondition(idx, { field: e.target.value })}>
-                        {FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-                      </select>
+                      <input className="ginput flex-1 min-w-0" list="field-list" value={cond.field} onChange={e => updateCondition(idx, { field: e.target.value })} placeholder="field.name" />
+                      <datalist id="field-list">
+                        {FIELDS.map(f => <option key={f.value} value={f.value} />)}
+                      </datalist>
                       <select className="ginput w-24 shrink-0" value={cond.operator} onChange={e => updateCondition(idx, { operator: e.target.value })}>
                         {OPERATORS.map(o => <option key={o} value={o}>{o}</option>)}
                       </select>
