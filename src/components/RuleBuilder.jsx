@@ -5,7 +5,19 @@ import { evalRule, interpolateMessage } from '../services/ruleEngine'
 import { resolveField } from '../utils'
 import { api } from '../api'
 
-const FIELDS = [
+function extractFieldPaths(obj, prefix = '') {
+  const paths = []
+  for (const key of Object.keys(obj)) {
+    const p = prefix ? `${prefix}.${key}` : key
+    paths.push(p)
+    if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+      paths.push(...extractFieldPaths(obj[key], p))
+    }
+  }
+  return paths
+}
+
+const COMMON_FIELDS = [
   'rule.description', 'rule.id', 'rule.level', 'rule.category', 'rule.groups', 'rule.firedtimes',
   'agent.name', 'agent.id', 'agent.ip',
   'decoder.name', 'full_log', 'location', 'input.type',
@@ -54,13 +66,14 @@ function LogicBadge({ logic, onClick }) {
   )
 }
 
-function FieldPicker({ value, onChange }) {
+function FieldPicker({ value, onChange, fieldList }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [focusedOnce, setFocusedOnce] = useState(false)
   const ref = useRef(null)
 
-  const filtered = query ? FIELDS.filter(f => f.toLowerCase().includes(query.toLowerCase())) : FIELDS
+  const list = fieldList || COMMON_FIELDS
+  const filtered = query ? list.filter(f => f.toLowerCase().includes(query.toLowerCase())) : list
 
   useEffect(() => {
     function handleClick(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
@@ -94,6 +107,20 @@ function Kbd({ children }) {
   return <kbd className="hidden lg:inline px-1 py-0.5 text-[9px] font-mono rounded bg-[#f3f4f6] dark:bg-[#2d3140] text-[#9ca3af] border border-[#e5e7eb] dark:border-[#2d3140]">{children}</kbd>
 }
 
+let dynamicFields = null
+function getFields() {
+  if (dynamicFields) return dynamicFields
+  const stored = sessionStorage.getItem('ruleFields')
+  if (stored) { dynamicFields = JSON.parse(stored); return dynamicFields }
+  return COMMON_FIELDS
+}
+
+function storeFields(list) {
+  const merged = [...new Set([...COMMON_FIELDS, ...list])].sort((a, b) => a.localeCompare(b))
+  dynamicFields = merged
+  try { sessionStorage.setItem('ruleFields', JSON.stringify(merged)) } catch {}
+}
+
 export default function RuleBuilder() {
   const [rules, setRules] = useState([])
   const [selectedId, setSelectedId] = useState(null)
@@ -102,10 +129,25 @@ export default function RuleBuilder() {
   const [testResults, setTestResults] = useState(null)
   const [testLoading, setTestLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [fields, setFieldsState] = useState(getFields)
 
   const refresh = useCallback(() => setRules(getAllRules()), [])
 
   useEffect(() => { refresh() }, [refresh])
+
+  useEffect(() => {
+    if (!fields.includes('data.win.system.eventID')) {
+      api('search', { limit: 5, sort: '@timestamp', order: 'desc' }).then(d => {
+        if (!d?.results?.length) return
+        const paths = new Set()
+        for (const doc of d.results) {
+          extractFieldPaths(doc).forEach(p => { if (!p.startsWith('_') && p !== 'id') paths.add(p) })
+        }
+        storeFields([...paths])
+        setFieldsState(getFields())
+      }).catch(() => {})
+    }
+  }, [])
 
   useEffect(() => {
     function handleKey(e) {
@@ -307,7 +349,7 @@ export default function RuleBuilder() {
                           )}
                           <div className={`flex items-start sm:items-center gap-2 text-xs ${idx > 0 ? 'mt-0' : ''}`}>
                             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 flex-1 bg-[#f9fafb] dark:bg-[#0f1117] rounded-lg border border-[#e5e7eb] dark:border-[#2d3140] p-1.5 sm:pl-2.5 sm:p-1">
-                              <FieldPicker value={cond.field} onChange={v => updCondition(idx, { field: v })} />
+                              <FieldPicker value={cond.field} onChange={v => updCondition(idx, { field: v })} fieldList={fields} />
                               <div className="hidden sm:block text-[#d1d5db] dark:text-[#4b5563] self-center">|</div>
                               <select className="bg-transparent outline-none text-soc-stext dark:text-soc-darkstext w-full sm:w-24 py-1 cursor-pointer text-[11px] sm:text-xs" value={cond.operator} onChange={e => updCondition(idx, { operator: e.target.value })}>
                                 {OPERATORS.map(o => <option key={o} value={o}>{o}</option>)}
