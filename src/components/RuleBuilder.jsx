@@ -236,16 +236,23 @@ export default function RuleBuilder() {
     if (!editing) return
     setTestLoading(true); setTestResults(null)
     try {
-      const d = await api('search', { limit: 20, sort: '@timestamp', order: 'desc' })
-      if (!d?.results?.length) { setTestResults({ error: 'No alerts found' }); setTestLoading(false); return }
-      setTestResults(d.results.map(doc => {
-        const result = evalRule(editing, doc)
-        const actions = result.matched ? (editing.actions || []).map(a => ({
-          ...a, computedSeverity: a.type === 'alert' ? computeSeverity(a, doc) : null,
-          interpolated: a.type === 'alert' ? interpolateMessage(a.params?.message || '', doc) : null
-        })) : []
-        return { timestamp: resolveField(doc, '@timestamp'), ruleDesc: resolveField(doc, 'rule.description'), ruleLevel: resolveField(doc, 'rule.level'), ...result, actions }
-      }))
+      let results = [], limit = 20
+      while (results.length === 0 && limit <= 200) {
+        const d = await api('search', { limit, sort: '@timestamp', order: 'desc' })
+        if (!d?.results?.length) break
+        results = d.results.map(doc => {
+          const result = evalRule(editing, doc)
+          const actions = result.matched ? (editing.actions || []).map(a => ({
+            ...a, computedSeverity: a.type === 'alert' ? computeSeverity(a, doc) : null,
+            interpolated: a.type === 'alert' ? interpolateMessage(a.params?.message || '', doc) : null
+          })) : []
+          return { timestamp: resolveField(doc, '@timestamp'), ruleDesc: resolveField(doc, 'rule.description'), ruleLevel: resolveField(doc, 'rule.level'), ...result, actions }
+        })
+        const hasAnyField = results.some(r => r.details?.some(d => !d.condition.missing))
+        if (hasAnyField || limit >= 200) break
+        limit = 200
+      }
+      setTestResults(results)
     } catch (e) { setTestResults({ error: e.message }) }
     setTestLoading(false)
   }
@@ -469,12 +476,14 @@ export default function RuleBuilder() {
                   )}
                   {testResults && Array.isArray(testResults) && (
                     <>
-                      <div className="flex items-center gap-2 mb-3">
+                      <div className="flex items-center gap-2 mb-3 flex-wrap">
                         <div className="flex items-center gap-1.5 text-xs">
                           <span className="font-semibold text-green-600 dark:text-green-400">{testResults.filter(r => r.matched).length}</span>
                           <span className="text-[#9ca3af]">/ {testResults.length} matched</span>
                         </div>
-                        <div className="flex-1 h-1.5 bg-[#f3f4f6] dark:bg-[#2d3140] rounded-full overflow-hidden">
+                        <span className="text-[9px] text-[#9ca3af]">|</span>
+                        <span className="text-[9px] text-[#9ca3af]">{testResults.filter(r => r.details?.some(d => !d.condition.missing)).length} have this field</span>
+                        <div className="flex-1 h-1.5 bg-[#f3f4f6] dark:bg-[#2d3140] rounded-full overflow-hidden min-w-[60px]">
                           <div className="h-full bg-green-500 rounded-full transition-all duration-300" style={{ width: `${(testResults.filter(r => r.matched).length / testResults.length) * 100}%` }} />
                         </div>
                       </div>
