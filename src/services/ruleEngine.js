@@ -33,8 +33,9 @@ function evalOperator(fieldVal, operator, condVal) {
 export function evalCondition(condition, doc) {
   const { field, operator, value, negate } = condition
   const fieldVal = resolveField(doc, field)
+  const missing = fieldVal === '' && !['exists'].includes(operator)
   const matched = evalOperator(fieldVal, operator, value)
-  return negate ? !matched : matched
+  return { matched: negate ? !matched : matched, missing }
 }
 
 export function evalRule(rule, doc) {
@@ -44,10 +45,10 @@ export function evalRule(rule, doc) {
     return { matched: true, details: [], actions: actions || [] }
   }
 
-  const results = conditions.map(c => ({
-    condition: c,
-    matched: evalCondition(c, doc)
-  }))
+  const results = conditions.map(c => {
+    const ev = evalCondition(c, doc)
+    return { condition: { ...c, missing: ev.missing }, matched: ev.matched }
+  })
 
   const matched = results.reduce((acc, r, idx) => {
     if (idx === 0) return r.matched

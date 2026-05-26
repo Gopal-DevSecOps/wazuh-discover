@@ -519,9 +519,16 @@ export default function RuleBuilder() {
                                     <span key={di} className={`text-[9px] px-1.5 py-0.5 rounded-full ${
                                       d.matched
                                         ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300'
-                                        : 'bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+                                        : d.condition.missing
+                                          ? 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                                          : 'bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400'
                                     }`}>
-                                      {d.condition.field} {d.condition.operator} <span className="font-mono">"{d.condition.value}"</span>
+                                      {d.matched
+                                        ? `${d.condition.field} ${d.condition.operator} "${d.condition.value}"`
+                                        : d.condition.missing
+                                          ? `Field "${d.condition.field}" not in this alert`
+                                          : `${d.condition.field} ${d.condition.operator} "${d.condition.value}"`
+                                      }
                                     </span>
                                   ))}
                                 </div>
