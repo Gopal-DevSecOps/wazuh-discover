@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { getAllRules, createRule, updateRule, deleteRule, toggleRuleEnabled } from '../services/ruleStorage'
 import { evalRule, interpolateMessage } from '../services/ruleEngine'
 import { resolveField } from '../utils'
@@ -33,7 +33,7 @@ function cleanRule(r) {
 function Toggle({ checked, onChange }) {
   return (
     <button type="button" role="switch" aria-checked={checked} onClick={onChange}
-      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-all duration-200 focus:outline-none ${checked ? 'bg-[#3b82f6]' : 'bg-[#d1d5db] dark:bg-[#4b5563]'}`}>
+      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/30 ${checked ? 'bg-[#3b82f6]' : 'bg-[#d1d5db] dark:bg-[#4b5563]'}`}>
       <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform ring-0 transition-all duration-200 ${checked ? 'translate-x-4' : 'translate-x-0'}`} />
     </button>
   )
@@ -42,7 +42,7 @@ function Toggle({ checked, onChange }) {
 function LogicBadge({ logic, onClick }) {
   const isOr = (logic || 'AND') === 'OR'
   return (
-    <button onClick={onClick}
+    <button onClick={onClick} title="Click to toggle"
       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase transition-all duration-150 ${
         isOr
           ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-500/30'
@@ -69,14 +69,14 @@ function FieldPicker({ value, onChange }) {
   useEffect(() => { setQuery(value || '') }, [value])
 
   return (
-    <div className="relative flex-1" ref={ref}>
-      <input className="w-full bg-transparent outline-none text-soc-stext dark:text-soc-darkstext py-1.5" placeholder="field"
+    <div className="relative flex-1 min-w-0" ref={ref}>
+      <input className="w-full bg-transparent outline-none text-soc-stext dark:text-soc-darkstext py-1.5 text-[11px] sm:text-xs" placeholder="field"
         value={query} onFocus={() => setOpen(true)}
         onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true) }} />
       {open && (
-        <div className="absolute left-0 top-full mt-1 w-full bg-white dark:bg-[#1a1d27] border border-[#e5e7eb] dark:border-[#2d3140] rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
+        <div className="absolute left-0 top-full mt-1 w-full min-w-[200px] bg-white dark:bg-[#1a1d27] border border-[#e5e7eb] dark:border-[#2d3140] rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
           {filtered.map(f => (
-            <button key={f} type="button" className="w-full text-left px-3 py-1.5 text-xs hover:bg-[#f3f4f6] dark:hover:bg-[#2d3140] text-soc-stext dark:text-soc-darkstext truncate"
+            <button key={f} type="button" className="w-full text-left px-3 py-1.5 text-[11px] sm:text-xs hover:bg-[#f3f4f6] dark:hover:bg-[#2d3140] text-soc-stext dark:text-soc-darkstext truncate transition-colors"
               onMouseDown={() => { setQuery(f); onChange(f); setOpen(false) }}>{f}</button>
           ))}
           {filtered.length === 0 && <div className="px-3 py-2 text-[10px] text-[#9ca3af] italic">Custom: {query}</div>}
@@ -91,6 +91,10 @@ function SeverityDot({ sev }) {
   return <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.dot }} />
 }
 
+function Kbd({ children }) {
+  return <kbd className="hidden lg:inline px-1 py-0.5 text-[9px] font-mono rounded bg-[#f3f4f6] dark:bg-[#2d3140] text-[#9ca3af] border border-[#e5e7eb] dark:border-[#2d3140]">{children}</kbd>
+}
+
 export default function RuleBuilder() {
   const [rules, setRules] = useState([])
   const [selectedId, setSelectedId] = useState(null)
@@ -98,10 +102,23 @@ export default function RuleBuilder() {
   const [dirty, setDirty] = useState(false)
   const [testResults, setTestResults] = useState(null)
   const [testLoading, setTestLoading] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   const refresh = useCallback(() => setRules(getAllRules()), [])
 
   useEffect(() => { refresh() }, [refresh])
+
+  useEffect(() => {
+    function handleKey(e) {
+      if (e.key === 's' && (e.metaKey || e.ctrlKey) && editing) { e.preventDefault(); handleSave() }
+    }
+    document.addEventListener('keydown', handleKey); return () => document.removeEventListener('keydown', handleKey)
+  }, [editing, dirty])
+
+  function handleSave() {
+    if (!editing?.id) return
+    updateRule(editing.id, editing); setDirty(false); refresh()
+  }
 
   function handleSelect(id) {
     if (dirty && editing) updateRule(editing.id, editing)
@@ -109,16 +126,13 @@ export default function RuleBuilder() {
     const r = getAllRules().find(x => x.id === id)
     setEditing(r ? cleanRule(JSON.parse(JSON.stringify(r))) : null)
     setDirty(false)
+    if (window.innerWidth < 1024) setSidebarOpen(false)
   }
 
   function handleNew() {
     const r = createRule({ name: 'New Rule' })
     refresh(); setSelectedId(r.id); setEditing(cleanRule(JSON.parse(JSON.stringify(r)))); setDirty(false)
-  }
-
-  function handleSave() {
-    if (!editing?.id) return
-    updateRule(editing.id, editing); setDirty(false); refresh()
+    if (window.innerWidth < 1024) setSidebarOpen(false)
   }
 
   function handleDelete() {
@@ -140,11 +154,6 @@ export default function RuleBuilder() {
 
   function delCondition(idx) {
     setEditing(prev => prev ? { ...prev, conditions: prev.conditions.filter((_, i) => i !== idx) } : null)
-    setDirty(true)
-  }
-
-  function addAction() {
-    setEditing(prev => prev ? { ...prev, actions: [...prev.actions, { type: 'alert', params: { severity: 'high', level: null, message: '' } }] } : null)
     setDirty(true)
   }
 
@@ -188,84 +197,99 @@ export default function RuleBuilder() {
   }
 
   const allRules = getAllRules()
+  const sidebarWidth = sidebarOpen ? 'w-56 lg:w-56' : 'w-0 lg:w-0'
 
   return (
-    <div className="flex flex-col h-full bg-[#f8f9fc] dark:bg-[#13151a]">
-      <div className="flex items-center gap-3 px-4 py-2.5 text-xs border-b border-[#e5e7eb] dark:border-[#2d3140] bg-white dark:bg-[#1a1d27]">
-        <span className="font-semibold text-soc-stext dark:text-soc-darkstext flex items-center gap-1.5">
+    <div className="flex flex-col h-full bg-[#f8f9fc] dark:bg-[#0e0f14]">
+      <header className="flex items-center gap-2 px-3 sm:px-4 py-2 text-xs border-b border-[#e5e7eb] dark:border-[#2d3140] bg-white dark:bg-[#16181f]">
+        <button onClick={() => setSidebarOpen(o => !o)} className="p-1 -ml-1 rounded-lg hover:bg-[#f3f4f6] dark:hover:bg-[#2d3140] transition-colors shrink-0"
+          title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}>
+          <svg className="w-4 h-4 text-[#6b7280]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            {sidebarOpen ? <path d="M9 5l7 7-7 7"/> : <path d="M15 19l-7-7 7-7"/>}
+          </svg>
+        </button>
+        <span className="font-semibold text-soc-stext dark:text-soc-darkstext flex items-center gap-1.5 shrink-0">
           <svg className="w-3.5 h-3.5 text-[#3b82f6]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9M16.376 3.622a1 1 0 013.002 3.002L7.368 18.635a2 2 0 01-.855.506l-2.872.838a.5.5 0 01-.62-.62l.838-2.872a2 2 0 01.506-.854z"/></svg>
-          Rules Engine
+          <span className="hidden sm:inline">Rules Engine</span>
         </span>
-        <span className="text-[#9ca3af] dark:text-[#6b7280]">{allRules.length} rules, {allRules.filter(r => r.enabled).length} enabled</span>
-      </div>
+        <span className="text-[#9ca3af] dark:text-[#6b7280] ml-1">{allRules.length} rules, {allRules.filter(r => r.enabled).length} enabled</span>
+        <span className="ml-auto hidden sm:flex items-center gap-1 text-[9px] text-[#9ca3af]"><Kbd>⌘S</Kbd> to save</span>
+      </header>
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-56 shrink-0 border-r border-[#e5e7eb] dark:border-[#2d3140] overflow-y-auto bg-white dark:bg-[#1a1d27]">
-          <div className="p-3 border-b border-[#e5e7eb] dark:border-[#2d3140]">
-            <button onClick={handleNew} className="gbtn text-xs w-full flex items-center justify-center gap-1.5 bg-[#3b82f6] text-white hover:bg-[#2563eb] active:bg-[#1d4ed8] shadow-sm">
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
-              New Rule
-            </button>
-          </div>
-          <div className="py-1.5">
-            {allRules.length === 0 && (
-              <div className="flex flex-col items-center gap-2 text-[#9ca3af] text-xs text-center py-10 px-4">
-                <svg className="w-8 h-8 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                No rules yet
-                <span className="text-[10px] opacity-60">Click + New Rule to create one</span>
+        <AnimatePresence initial={false}>
+          {sidebarOpen && (
+            <motion.aside key="sidebar" initial={{ width: 0, opacity: 0 }} animate={{ width: 'auto', opacity: 1 }} exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: 'easeInOut' }}
+              className="border-r border-[#e5e7eb] dark:border-[#2d3140] overflow-hidden bg-white dark:bg-[#16181f] shrink-0">
+              <div className="w-56 flex flex-col h-full">
+                <div className="p-3 border-b border-[#e5e7eb] dark:border-[#2d3140]">
+                  <button onClick={handleNew} className="gbtn text-xs w-full flex items-center justify-center gap-1.5 bg-[#3b82f6] text-white hover:bg-[#2563eb] active:bg-[#1d4ed8] shadow-sm transition-all">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                    New Rule
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto py-1">
+                  {allRules.length === 0 && (
+                    <div className="flex flex-col items-center gap-2 text-[#9ca3af] text-xs text-center py-10 px-4">
+                      <svg className="w-8 h-8 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                      No rules yet
+                    </div>
+                  )}
+                  {allRules.map(r => (
+                    <button key={r.id} onClick={() => handleSelect(r.id)}
+                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-all duration-150 border-l-2 ${
+                        selectedId === r.id
+                          ? 'bg-soc-blue/5 dark:bg-blue-500/10 text-soc-blue dark:text-blue-400 border-l-soc-blue dark:border-l-blue-400'
+                          : 'text-soc-stext dark:text-soc-darkstext hover:bg-[#f3f4f6] dark:hover:bg-[#2d3140] border-l-transparent'
+                      }`}>
+                      <span className={`w-2 h-2 rounded-full shrink-0 transition-colors ${r.enabled ? 'bg-green-500 shadow-sm shadow-green-500/30' : 'bg-[#d1d5db] dark:bg-[#4b5563]'}`} />
+                      <span className="flex-1 truncate font-medium">{r.name}</span>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
+                        selectedId === r.id
+                          ? 'bg-soc-blue/10 dark:bg-blue-500/20 text-soc-blue dark:text-blue-400'
+                          : 'bg-[#f3f4f6] dark:bg-[#2d3140] text-[#9ca3af] dark:text-[#6b7280]'
+                      }`}>{r.enabled ? 'ON' : 'OFF'}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            )}
-            {allRules.map(r => (
-              <button key={r.id} onClick={() => handleSelect(r.id)}
-                className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-all duration-150 border-l-2 ${
-                  selectedId === r.id
-                    ? 'bg-soc-blue/5 dark:bg-blue-500/10 text-soc-blue dark:text-blue-400 border-l-soc-blue dark:border-l-blue-400'
-                    : 'text-soc-stext dark:text-soc-darkstext hover:bg-[#f3f4f6] dark:hover:bg-[#2d3140] border-l-transparent'
-                }`}>
-                <span className={`w-2 h-2 rounded-full shrink-0 transition-colors ${r.enabled ? 'bg-green-500 shadow-sm shadow-green-500/30' : 'bg-[#d1d5db] dark:bg-[#4b5563]'}`} />
-                <span className="flex-1 truncate font-medium">{r.name}</span>
-                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
-                  selectedId === r.id
-                    ? 'bg-soc-blue/10 dark:bg-blue-500/20 text-soc-blue dark:text-blue-400'
-                    : 'bg-[#f3f4f6] dark:bg-[#2d3140] text-[#9ca3af] dark:text-[#6b7280]'
-                }`}>{r.enabled ? 'ON' : 'OFF'}</span>
-              </button>
-            ))}
-          </div>
-        </aside>
-        <div className="flex-1 overflow-y-auto p-5">
+            </motion.aside>
+          )}
+        </AnimatePresence>
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5">
           {!editing ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center h-full text-sm text-[#9ca3af] gap-3">
               <svg className="w-12 h-12 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
               <span>Select a rule or create a new one</span>
             </motion.div>
           ) : (
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl mx-auto space-y-5 pb-24">
-              <div className="flex items-center gap-4 bg-white dark:bg-[#1a1d27] rounded-xl border border-[#e5e7eb] dark:border-[#2d3140] px-4 py-3 shadow-sm">
-                <div className="flex-1 relative">
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl mx-auto space-y-4 sm:space-y-5 pb-28">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 bg-white dark:bg-[#16181f] rounded-xl border border-[#e5e7eb] dark:border-[#2d3140] px-4 py-3 shadow-sm">
+                <div className="flex-1 w-full sm:w-auto relative">
                   <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#9ca3af]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9M16.376 3.622a1 1 0 013.002 3.002L7.368 18.635a2 2 0 01-.855.506l-2.872.838a.5.5 0 01-.62-.62l.838-2.872a2 2 0 01.506-.854z"/></svg>
                   <input className="ginput w-full pl-8 text-sm font-semibold py-2" value={editing.name} onChange={e => patch({ name: e.target.value })} placeholder="Rule name" />
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 ml-auto">
                   <span className="text-[10px] text-[#9ca3af] font-medium uppercase tracking-wider">{editing.enabled ? 'Enabled' : 'Disabled'}</span>
                   <Toggle checked={editing.enabled} onChange={() => patch({ enabled: !editing.enabled })} />
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-[#1a1d27] rounded-xl border border-[#e5e7eb] dark:border-[#2d3140] shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-[#e5e7eb] dark:border-[#2d3140]">
+              <div className="bg-white dark:bg-[#16181f] rounded-xl border border-[#e5e7eb] dark:border-[#2d3140] shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-3 sm:px-4 py-3 border-b border-[#e5e7eb] dark:border-[#2d3140]">
                   <div className="flex items-center gap-2">
                     <svg className="w-3.5 h-3.5 text-[#9ca3af]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     <span className="text-[11px] uppercase font-semibold text-[#9ca3af] tracking-wider">Conditions</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-[#9ca3af]">{editing.conditions.length} condition{editing.conditions.length !== 1 ? 's' : ''}</span>
-                    <button onClick={addCondition} className="gbtn text-xs flex items-center gap-1 bg-[#f3f4f6] dark:bg-[#2d3140] hover:bg-[#e5e7eb] dark:hover:bg-[#374151]">
+                    <span className="hidden sm:inline text-[10px] text-[#9ca3af]">{editing.conditions.length} condition{editing.conditions.length !== 1 ? 's' : ''}</span>
+                    <button onClick={addCondition} className="gbtn text-xs flex items-center gap-1 bg-[#f3f4f6] dark:bg-[#2d3140] hover:bg-[#e5e7eb] dark:hover:bg-[#374151] transition-colors">
                       <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
                       Add
                     </button>
                   </div>
                 </div>
-                <div className="p-4">
+                <div className="p-3 sm:p-4">
                   {editing.conditions.length === 0 ? (
                     <div className="text-xs text-[#9ca3af] py-6 text-center italic">Matches all events <span className="not-italic">—</span> add a condition to filter</div>
                   ) : (
@@ -275,23 +299,23 @@ export default function RuleBuilder() {
                           {idx > 0 && (
                             <div className="flex items-center justify-center py-1.5">
                               <div className="flex items-center gap-2">
-                                <div className="w-12 h-px bg-[#e5e7eb] dark:bg-[#2d3140]" />
+                                <div className="w-8 sm:w-12 h-px bg-[#e5e7eb] dark:bg-[#2d3140]" />
                                 <LogicBadge logic={cond.logic || editing.conditionLogic} onClick={() => { const l = (cond.logic || editing.conditionLogic) === 'AND' ? 'OR' : 'AND'; updCondition(idx, { logic: l }) }} />
-                                <div className="w-12 h-px bg-[#e5e7eb] dark:bg-[#2d3140]" />
+                                <div className="w-8 sm:w-12 h-px bg-[#e5e7eb] dark:bg-[#2d3140]" />
                               </div>
                             </div>
                           )}
-                          <div className={`flex items-center gap-2 text-xs ${idx > 0 ? 'mt-0' : ''}`}>
-                            <div className="flex items-center gap-1.5 flex-1 bg-[#f9fafb] dark:bg-[#0f1117] rounded-lg border border-[#e5e7eb] dark:border-[#2d3140] p-1 pl-2.5">
+                          <div className={`flex items-start sm:items-center gap-2 text-xs ${idx > 0 ? 'mt-0' : ''}`}>
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 flex-1 bg-[#f9fafb] dark:bg-[#0f1117] rounded-lg border border-[#e5e7eb] dark:border-[#2d3140] p-1.5 sm:pl-2.5 sm:p-1">
                               <FieldPicker value={cond.field} onChange={v => updCondition(idx, { field: v })} />
-                              <span className="text-[#d1d5db] dark:text-[#4b5563]">|</span>
-                              <select className="bg-transparent outline-none text-soc-stext dark:text-soc-darkstext w-24 py-1.5 cursor-pointer" value={cond.operator} onChange={e => updCondition(idx, { operator: e.target.value })}>
+                              <div className="hidden sm:block text-[#d1d5db] dark:text-[#4b5563] self-center">|</div>
+                              <select className="bg-transparent outline-none text-soc-stext dark:text-soc-darkstext w-full sm:w-24 py-1 cursor-pointer text-[11px] sm:text-xs" value={cond.operator} onChange={e => updCondition(idx, { operator: e.target.value })}>
                                 {OPERATORS.map(o => <option key={o} value={o}>{o}</option>)}
                               </select>
-                              <span className="text-[#d1d5db] dark:text-[#4b5563]">|</span>
-                              <input className="flex-1 bg-transparent outline-none text-soc-stext dark:text-soc-darkstext py-1.5" placeholder="value" value={cond.value} onChange={e => updCondition(idx, { value: e.target.value })} />
+                              <div className="hidden sm:block text-[#d1d5db] dark:text-[#4b5563] self-center">|</div>
+                              <input className="flex-1 bg-transparent outline-none text-soc-stext dark:text-soc-darkstext py-1 text-[11px] sm:text-xs w-full sm:w-auto" placeholder="value" value={cond.value} onChange={e => updCondition(idx, { value: e.target.value })} />
                             </div>
-                            <button onClick={() => delCondition(idx)} className="p-1.5 text-[#9ca3af] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all shrink-0">
+                            <button onClick={() => delCondition(idx)} className="p-1.5 mt-0.5 sm:mt-0 text-[#9ca3af] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all shrink-0">
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
                             </button>
                           </div>
@@ -299,23 +323,22 @@ export default function RuleBuilder() {
                       ))}
                     </div>
                   )}
-
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-[#1a1d27] rounded-xl border border-[#e5e7eb] dark:border-[#2d3140] shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-[#e5e7eb] dark:border-[#2d3140]">
+              <div className="bg-white dark:bg-[#16181f] rounded-xl border border-[#e5e7eb] dark:border-[#2d3140] shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-3 sm:px-4 py-3 border-b border-[#e5e7eb] dark:border-[#2d3140]">
                   <div className="flex items-center gap-2">
                     <svg className="w-3.5 h-3.5 text-[#9ca3af]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     <span className="text-[11px] uppercase font-semibold text-[#9ca3af] tracking-wider">Actions</span>
                   </div>
                 </div>
-                <div className="p-4 space-y-2.5">
+                <div className="p-3 sm:p-4 space-y-2.5">
                   {editing.actions.map((act, idx) => (
                     <div key={idx} className="flex items-start gap-3 bg-[#f9fafb] dark:bg-[#0f1117] rounded-xl border border-[#e5e7eb] dark:border-[#2d3140] p-3">
-                      <div className="flex items-center gap-2.5 text-xs flex-1 flex-wrap">
+                      <div className="flex items-center gap-2 text-xs flex-1 flex-wrap min-w-0">
                         <div className="relative">
-                          <select className="ginput w-22 pl-6 py-1.5 font-medium appearance-none cursor-pointer" value={act.type} onChange={e => {
+                          <select className="ginput w-20 sm:w-22 pl-6 py-1.5 font-medium appearance-none cursor-pointer text-[11px] sm:text-xs" value={act.type} onChange={e => {
                             if (e.target.value === 'alert') updAction(idx, { type: 'alert', params: { severity: 'high', level: null, message: '' } })
                             else updAction(idx, { type: 'ignore', params: {} })
                           }}>
@@ -326,11 +349,11 @@ export default function RuleBuilder() {
                         </div>
                         {act.type === 'alert' ? (
                           <>
-                            <select className="ginput w-24 py-1.5" value={act.params?.severity || 'high'} onChange={e => updAction(idx, { params: { ...act.params, severity: e.target.value } })}>
+                            <select className="ginput w-22 sm:w-24 py-1.5 text-[11px] sm:text-xs" value={act.params?.severity || 'high'} onChange={e => updAction(idx, { params: { ...act.params, severity: e.target.value } })}>
                               {SEVERITIES.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
-                            <input type="number" className="ginput w-16 py-1.5 text-center font-mono" placeholder="Lvl" min="0" max="15" value={act.params?.level ?? ''} onChange={e => updAction(idx, { params: { ...act.params, level: e.target.value ? parseInt(e.target.value) : null } })} title="Override level 0-15" />
-                            <input className="ginput flex-1 py-1.5 font-mono text-[11px]" placeholder="Message ({{field}})" value={act.params?.message || ''} onChange={e => updAction(idx, { params: { ...act.params, message: e.target.value } })} />
+                            <input type="number" className="ginput w-14 sm:w-16 py-1.5 text-center font-mono text-[11px] sm:text-xs" placeholder="Lvl" min="0" max="15" value={act.params?.level ?? ''} onChange={e => updAction(idx, { params: { ...act.params, level: e.target.value ? parseInt(e.target.value) : null } })} title="Override level 0-15" />
+                            <input className="ginput flex-1 py-1.5 font-mono text-[11px] min-w-[120px]" placeholder="Message ({{field}})" value={act.params?.message || ''} onChange={e => updAction(idx, { params: { ...act.params, message: e.target.value } })} />
                           </>
                         ) : (
                           <span className="flex items-center gap-1.5 text-[#9ca3af] text-[11px] italic">
@@ -347,21 +370,21 @@ export default function RuleBuilder() {
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-[#1a1d27] rounded-xl border border-[#e5e7eb] dark:border-[#2d3140] shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-[#e5e7eb] dark:border-[#2d3140]">
+              <div className="bg-white dark:bg-[#16181f] rounded-xl border border-[#e5e7eb] dark:border-[#2d3140] shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-3 sm:px-4 py-3 border-b border-[#e5e7eb] dark:border-[#2d3140]">
                   <div className="flex items-center gap-2">
                     <svg className="w-3.5 h-3.5 text-[#9ca3af]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                     <span className="text-[11px] uppercase font-semibold text-[#9ca3af] tracking-wider">Test Results</span>
                   </div>
                   <button onClick={runTest} disabled={testLoading}
-                    className={`gbtn text-xs flex items-center gap-1.5 ${testLoading ? 'opacity-60 cursor-wait' : ''} bg-[#3b82f6] text-white hover:bg-[#2563eb] active:bg-[#1d4ed8] shadow-sm`}>
+                    className={`gbtn text-xs flex items-center gap-1.5 ${testLoading ? 'opacity-60 cursor-wait' : ''} bg-[#3b82f6] text-white hover:bg-[#2563eb] active:bg-[#1d4ed8] shadow-sm transition-all`}>
                     <svg className={`w-3 h-3 ${testLoading ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       {testLoading ? <><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></> : <path d="M5 3l14 9-14 9V3z"/>}
                     </svg>
                     {testLoading ? 'Testing...' : 'Run Test'}
                   </button>
                 </div>
-                <div className="p-4">
+                <div className="p-3 sm:p-4">
                   {testResults && !Array.isArray(testResults) && (
                     <div className="flex items-center gap-2 text-xs text-red-500 bg-red-50 dark:bg-red-900/10 rounded-lg px-3 py-2">
                       <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -436,24 +459,26 @@ export default function RuleBuilder() {
                 </div>
               </div>
 
-              <div className="fixed bottom-0 left-56 right-0 bg-white/95 dark:bg-[#1a1d27]/95 backdrop-blur border-t border-[#e5e7eb] dark:border-[#2d3140] px-5 py-3 flex items-center gap-3 z-10 shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
-                <button onClick={handleSave} className="gbtn text-xs flex items-center gap-1.5 bg-[#3b82f6] text-white hover:bg-[#2563eb] active:bg-[#1d4ed8] shadow-sm px-4">
+              <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-[#16181f]/95 backdrop-blur border-t border-[#e5e7eb] dark:border-[#2d3140] px-3 sm:px-5 py-3 flex items-center gap-2 sm:gap-3 z-10 shadow-[0_-1px_3px_rgba(0,0,0,0.05)]"
+                style={{ marginLeft: sidebarOpen ? undefined : 0 }}>
+                <button onClick={handleSave} className="gbtn text-xs flex items-center gap-1.5 bg-[#3b82f6] text-white hover:bg-[#2563eb] active:bg-[#1d4ed8] shadow-sm px-3 sm:px-4 transition-all"
+                  title="Ctrl+S">
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7"/></svg>
-                  Save
+                  <span className="hidden sm:inline">Save</span>
                 </button>
                 <button onClick={() => { toggleRuleEnabled(editing.id); patch({ enabled: !editing.enabled }) }}
-                  className={`gbtn text-xs px-4 ${editing.enabled ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 border border-amber-200 dark:border-amber-800/40' : 'bg-[#3b82f6] text-white hover:bg-[#2563eb]'}`}>
+                  className={`gbtn text-xs px-3 sm:px-4 transition-all ${editing.enabled ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 border border-amber-200 dark:border-amber-800/40' : 'bg-[#3b82f6] text-white hover:bg-[#2563eb]'}`}>
                   {editing.enabled ? 'Disable' : 'Enable'}
                 </button>
-                <button onClick={handleDelete} className="gbtn text-xs flex items-center gap-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 border border-transparent hover:border-red-200 dark:hover:border-red-800/40 px-4">
+                <button onClick={handleDelete} className="gbtn text-xs flex items-center gap-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 border border-transparent hover:border-red-200 dark:hover:border-red-800/40 px-3 sm:px-4 transition-all">
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                  Delete
+                  <span className="hidden sm:inline">Delete</span>
                 </button>
                 <div className="flex-1" />
                 {dirty && (
                   <span className="flex items-center gap-1.5 text-[10px] text-amber-600 dark:text-amber-400 font-medium bg-amber-50 dark:bg-amber-900/20 px-2.5 py-1 rounded-full">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                    Unsaved changes
+                    Unsaved
                   </span>
                 )}
               </div>
