@@ -145,8 +145,12 @@ function RuleBadge({ severity, name }) {
   return <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${cls}`}><span className="shrink-0">{'\u2699'}</span><span className="truncate max-w-[120px]">{name}</span></span>
 }
 
-export default function ResultsTable({ ruleMatches = null }) {
-  const { results, total, columns, toggleColumn, moveColumn, doSort, sortField, sortOrder, loading, error, isDark } = useApp()
+export default function ResultsTable({ ruleMatches = null, results: propResults = null, total: propTotal = null, loading: propLoading = null, error: propError = null }) {
+  const { results: ctxResults, total: ctxTotal, columns, toggleColumn, moveColumn, doSort, sortField, sortOrder, loading: ctxLoading, error: ctxError, isDark } = useApp()
+  const results = propResults ?? ctxResults
+  const total = propTotal ?? ctxTotal
+  const loading = propLoading ?? ctxLoading
+  const error = propError ?? ctxError
   const [expanded, setExpanded] = React.useState({})
   const toggleRow = id => setExpanded(prev => ({ ...prev, [id]: !prev[id] }))
 

@@ -13,6 +13,7 @@ import IndicesTab from './tabs/IndicesTab'
 import GeoTab from './tabs/GeoTab'
 import HealthTab from './tabs/HealthTab'
 import RulesTab from './tabs/RulesTab'
+import RuleViewTab from './tabs/RuleViewTab'
 
 const TABS = {
   discover: DiscoverTab,
@@ -23,14 +24,15 @@ const TABS = {
   indices: IndicesTab,
   geo: GeoTab,
   health: HealthTab,
-  rules: RulesTab
+  rules: RulesTab,
+  ruleview: RuleViewTab
 }
 
 function DashboardShell() {
   const { tab, setTab, doSearch } = useApp()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const TabComponent = TABS[tab] || DiscoverTab
-  const showQueryBar = tab === 'discover' || tab === 'search'
+  const showQueryBar = tab === 'discover' || tab === 'search' || tab === 'ruleview'
 
   useEffect(() => {
     if (tab === 'discover') doSearch()
