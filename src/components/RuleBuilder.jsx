@@ -139,7 +139,6 @@ export default function RuleBuilder() {
   const [dirty, setDirty] = useState(false)
   const [testResults, setTestResults] = useState(null)
   const [testLoading, setTestLoading] = useState(false)
-  const [testJson, setTestJson] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [fields, setFieldsState] = useState(getFields)
 
@@ -232,26 +231,20 @@ export default function RuleBuilder() {
     return 'info'
   }
 
-  async function runTestSingle() {
+  async function runTest() {
     if (!editing) return
     setTestLoading(true); setTestResults(null)
     try {
-      let doc
-      if (testJson.trim()) {
-        doc = JSON.parse(testJson)
-      } else {
-        const d = await api('search', { limit: 1, sort: '@timestamp', order: 'desc' })
-        if (!d?.results?.length) { setTestResults({ error: 'No alerts found. Paste JSON manually.' }); setTestLoading(false); return }
-        doc = d.results[0]
-        setTestJson(JSON.stringify(doc, null, 2))
-      }
+      const d = await api('search', { limit: 1, sort: '@timestamp', order: 'desc' })
+      if (!d?.results?.length) { setTestResults({ error: 'No alerts found' }); setTestLoading(false); return }
+      const doc = d.results[0]
       const result = evalRule(editing, doc)
       const actions = result.matched ? (editing.actions || []).map(a => ({
         ...a, computedSeverity: a.type === 'alert' ? computeSeverity(a, doc) : null,
         interpolated: a.type === 'alert' ? interpolateMessage(a.params?.message || '', doc) : null
       })) : []
       setTestResults([{ timestamp: resolveField(doc, '@timestamp'), ruleDesc: resolveField(doc, 'rule.description'), ruleLevel: resolveField(doc, 'rule.level'), ...result, actions }])
-    } catch (e) { setTestResults({ error: 'Invalid JSON: ' + e.message }) }
+    } catch (e) { setTestResults({ error: e.message }) }
     setTestLoading(false)
   }
 
@@ -434,20 +427,15 @@ export default function RuleBuilder() {
                     <svg className="w-3.5 h-3.5 text-[#9ca3af]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                     <span className="text-[11px] uppercase font-semibold text-[#9ca3af] tracking-wider">Test</span>
                   </div>
-                  <button onClick={runTestSingle} disabled={testLoading}
-                    className={`gbtn text-xs flex items-center gap-1 ${testLoading ? 'opacity-60 cursor-wait' : ''} bg-[#3b82f6] text-white hover:bg-[#2563eb] active:bg-[#1d4ed8] shadow-sm transition-all`}>
+                  <button onClick={runTest} disabled={testLoading}
+                    className={`gbtn text-xs flex items-center gap-1.5 ${testLoading ? 'opacity-60 cursor-wait' : ''} bg-[#3b82f6] text-white hover:bg-[#2563eb] active:bg-[#1d4ed8] shadow-sm transition-all`}>
                     <svg className={`w-3 h-3 ${testLoading ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       {testLoading ? <><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></> : <path d="M5 3l14 9-14 9V3z"/>}
                     </svg>
-                    {testLoading ? 'Testing...' : 'Test Rule'}
+                    {testLoading ? 'Testing...' : 'Test on latest alert'}
                   </button>
                 </div>
-                <div className="p-3 sm:p-4 space-y-3">
-                  <div className="flex items-start gap-2">
-                    <textarea className="ginput w-full p-2 text-[10px] font-mono leading-relaxed resize-none" rows={3}
-                      placeholder={'Paste any alert JSON here, or leave empty → auto-fetches 1 sample alert'}
-                      value={testJson} onChange={e => setTestJson(e.target.value)} />
-                  </div>
+                <div className="p-3 sm:p-4">
                   {testResults && !Array.isArray(testResults) && (
                     <div className="flex items-center gap-2 text-xs text-red-500 bg-red-50 dark:bg-red-900/10 rounded-lg px-3 py-2">
                       <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
