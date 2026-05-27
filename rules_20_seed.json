@@ -5,64 +5,64 @@
       "name": "Level-Based",
       "description": "Level-Based rules",
       "order": 0,
-      "createdAt": "2026-05-26T05:37:37.433Z",
-      "updatedAt": "2026-05-26T05:37:37.434Z"
+      "createdAt": "2026-05-27T06:16:36.759Z",
+      "updatedAt": "2026-05-27T06:16:36.759Z"
     },
     {
       "id": "g_sysmon",
       "name": "Sysmon",
       "description": "Sysmon rules",
       "order": 1,
-      "createdAt": "2026-05-26T05:37:37.434Z",
-      "updatedAt": "2026-05-26T05:37:37.434Z"
+      "createdAt": "2026-05-27T06:16:36.759Z",
+      "updatedAt": "2026-05-27T06:16:36.759Z"
     },
     {
       "id": "g_threat_intel",
       "name": "Threat Intel",
       "description": "Threat Intel rules",
       "order": 2,
-      "createdAt": "2026-05-26T05:37:37.434Z",
-      "updatedAt": "2026-05-26T05:37:37.434Z"
+      "createdAt": "2026-05-27T06:16:36.759Z",
+      "updatedAt": "2026-05-27T06:16:36.759Z"
     },
     {
       "id": "g_file_integrity",
       "name": "File Integrity",
       "description": "File Integrity rules",
       "order": 3,
-      "createdAt": "2026-05-26T05:37:37.434Z",
-      "updatedAt": "2026-05-26T05:37:37.434Z"
+      "createdAt": "2026-05-27T06:16:36.759Z",
+      "updatedAt": "2026-05-27T06:16:36.759Z"
     },
     {
       "id": "g_authentication",
       "name": "Authentication",
       "description": "Authentication rules",
       "order": 4,
-      "createdAt": "2026-05-26T05:37:37.434Z",
-      "updatedAt": "2026-05-26T05:37:37.434Z"
+      "createdAt": "2026-05-27T06:16:36.759Z",
+      "updatedAt": "2026-05-27T06:16:36.759Z"
     },
     {
       "id": "g_firewall",
       "name": "Firewall",
       "description": "Firewall rules",
       "order": 5,
-      "createdAt": "2026-05-26T05:37:37.434Z",
-      "updatedAt": "2026-05-26T05:37:37.434Z"
+      "createdAt": "2026-05-27T06:16:36.759Z",
+      "updatedAt": "2026-05-27T06:16:36.759Z"
     },
     {
       "id": "g_system_health",
       "name": "System Health",
       "description": "System Health rules",
       "order": 6,
-      "createdAt": "2026-05-26T05:37:37.434Z",
-      "updatedAt": "2026-05-26T05:37:37.434Z"
+      "createdAt": "2026-05-27T06:16:36.759Z",
+      "updatedAt": "2026-05-27T06:16:36.759Z"
     },
     {
       "id": "g_registry",
       "name": "Registry",
       "description": "Registry rules",
       "order": 7,
-      "createdAt": "2026-05-26T05:37:37.434Z",
-      "updatedAt": "2026-05-26T05:37:37.434Z"
+      "createdAt": "2026-05-27T06:16:36.759Z",
+      "updatedAt": "2026-05-27T06:16:36.759Z"
     }
   ],
   "rules": [

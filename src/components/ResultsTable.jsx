@@ -146,13 +146,21 @@ function RuleBadge({ severity, name }) {
 }
 
 export default function ResultsTable({ ruleMatches = null, results: propResults = null, total: propTotal = null, loading: propLoading = null, error: propError = null }) {
-  const { results: ctxResults, total: ctxTotal, columns, toggleColumn, moveColumn, doSort, sortField, sortOrder, loading: ctxLoading, error: ctxError, isDark } = useApp()
+  const { results: ctxResults, total: ctxTotal, columns, toggleColumn, moveColumn, doSort, sortField, sortOrder, loading: ctxLoading, error: ctxError, isDark, fields, loadFields } = useApp()
   const results = propResults ?? ctxResults
   const total = propTotal ?? ctxTotal
   const loading = propLoading ?? ctxLoading
   const error = propError ?? ctxError
   const [expanded, setExpanded] = React.useState({})
+  const [fieldsOpen, setFieldsOpen] = React.useState(false)
+  const [fieldSearch, setFieldSearch] = React.useState('')
   const toggleRow = id => setExpanded(prev => ({ ...prev, [id]: !prev[id] }))
+
+  React.useEffect(() => { loadFields() }, [])
+  React.useEffect(() => {
+    function handleClick(e) { if (!e.target.closest('.fields-dropdown')) setFieldsOpen(false) }
+    document.addEventListener('mousedown', handleClick); return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
 
   if (error) return <div className="p-3 text-xs text-red-500 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">{'\u274C'} {error}</div>
   if (loading && !results.length) return <div className="p-4 text-xs text-center text-soc-stext dark:text-soc-darkstext">{'\u23F3'} Searching...</div>
@@ -160,21 +168,41 @@ export default function ResultsTable({ ruleMatches = null, results: propResults 
 
   return (
     <div>
-      <div className="text-xs text-soc-stext dark:text-soc-darkstext mb-1 px-0.5">
-        <b className="text-soc-text dark:text-soc-darktext">{total.toLocaleString()}</b> results ({results.length} shown)
+      <div className="text-xs text-soc-stext dark:text-soc-darkstext mb-1 px-0.5 flex items-center gap-3">
+        <span><b className="text-soc-text dark:text-soc-darktext">{total.toLocaleString()}</b> results ({results.length} shown)</span>
+        <div className="fields-dropdown relative">
+          <button onClick={() => { setFieldsOpen(o => !o); loadFields() }}
+            className="inline-flex items-center gap-1 text-[10px] font-medium text-[#1a73e8] dark:text-[#8ab4f8] hover:underline">
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            Fields <span className="text-soc-stext/50 dark:text-soc-darkstext/50">({fields.length})</span>
+          </button>
+          {fieldsOpen && (
+            <div className="absolute top-full left-0 mt-1 w-56 max-h-64 overflow-y-auto bg-white dark:bg-[#1a1d27] border border-[#e5e7eb] dark:border-[#2d3140] rounded-lg shadow-lg z-50 p-2">
+              <input autoFocus placeholder="Search fields..." value={fieldSearch} onChange={e => setFieldSearch(e.target.value)}
+                className="w-full px-2 py-1 mb-1 text-[10px] bg-[#f3f4f6] dark:bg-[#2d3140] rounded outline-none text-soc-stext dark:text-soc-darkstext" />
+              {fields.filter(f => {
+                if (!fieldSearch) return !columns.includes(f.name)
+                const q = fieldSearch.toLowerCase()
+                return f.name.toLowerCase().includes(q) && !columns.includes(f.name)
+              }).slice(0, 100).map(f => (
+                <button key={f.name} onClick={() => { toggleColumn(f.name); setFieldsOpen(false) }}
+                  className="w-full text-left px-2 py-1 text-[10px] rounded hover:bg-[#f3f4f6] dark:hover:bg-[#2d3140] text-soc-stext dark:text-soc-darkstext truncate transition-colors">
+                  {f.name}
+                </button>
+              ))}
+              {fields.filter(f => !columns.includes(f.name)).length === 0 && (
+                <div className="px-2 py-2 text-[9px] text-soc-stext/50 dark:text-soc-darkstext/50 italic text-center">All fields added</div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
       <div className="gcard overflow-x-auto">
         <table className="w-full text-xs min-w-[600px]">
           <thead>
             <tr className="bg-soc-bg dark:bg-soc-darkbg">
               <th className="p-0 w-7"></th>
-              {ruleMatches !== null && (
-                <th className="p-0 border-b border-soc-border dark:border-soc-darkborder w-[130px]">
-                  <div className="th-wrap flex items-center gap-1 px-1.5 py-1">
-                    <span className="font-semibold text-purple-600 dark:text-purple-400 text-xxs">Rule</span>
-                  </div>
-                </th>
-              )}
+
               {columns.map(c => (
                 <th key={c} className="p-0 border-b border-soc-border dark:border-soc-darkborder">
                   <div className="th-wrap flex items-center gap-1 px-1.5 py-1">
@@ -216,14 +244,17 @@ export default function ResultsTable({ ruleMatches = null, results: propResults 
                       {isExp ? '\u25BC' : '\u25B6'}
                     </td>
                     {columns.map(c => {
+                      if (c === 'Rule') {
+                        return (
+                          <td key="Rule" className="px-1.5 py-1">
+                            {match ? <RuleBadge severity={match.severity} name={match.ruleName} /> : <span className="text-soc-stext/40 dark:text-soc-darkstext/40">{'\u2014'}</span>}
+                          </td>
+                        )
+                      }
                       let v = resolveField(row, c)
                       const raw = String(v ?? '')
                       let disp
-                      if (c === 'rule.level') {
-                        const ov = match?.level
-                        disp = <span className="inline-flex items-center gap-1">{ov ? <><span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" title={`Rule override: ${ov}`} /><LevelBadge level={ov} /></> : null}<LevelBadge level={v} />
-                          {match?.level ? <span className="text-[9px] text-soc-stext/40 dark:text-soc-darkstext/40 line-through">{v}</span> : null}</span>
-                      } else if (c === 'rule.description' && match?.message) {
+                      if (c === 'rule.description' && match?.message) {
                         disp = <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" title="Rule override" />{match.message}</span>
                       } else if (c === '@timestamp' || c === 'timestamp') disp = <span className="text-soc-stext dark:text-soc-darkstext text-xxs">{raw.slice(0, 19)}</span>
                       else { let x = raw; if (x.length > 100) x = x.slice(0, 100) + '\u2026'; disp = x || '\u2014' }
@@ -236,15 +267,11 @@ export default function ResultsTable({ ruleMatches = null, results: propResults 
                         </td>
                       )
                     })}
-                    {ruleMatches !== null && (
-                      <td className="px-1.5 py-1">
-                        {match ? <RuleBadge severity={match.severity} name={match.ruleName} /> : <span className="text-soc-stext/40 dark:text-soc-darkstext/40">{'\u2014'}</span>}
-                      </td>
-                    )}
+
                   </tr>
                   {isExp && (
                     <tr>
-                      <td colSpan={columns.length + 1 + (ruleMatches !== null ? 1 : 0)} className="p-0">
+                      <td colSpan={columns.length + 1} className="p-0">
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} transition={{ duration: 0.15 }}>
                           <DocViewer doc={row} />
                         </motion.div>

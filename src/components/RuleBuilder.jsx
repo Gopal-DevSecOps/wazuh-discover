@@ -35,6 +35,7 @@ const SEV_COLORS = { critical: { dot: '#dc2626', bg: '#fef2f2', darkBg: '#dc2626
 function cleanRule(r) {
   return {
     ...r, name: r.name || '',
+    overwrite: r.overwrite !== false,
     conditionLogic: r.conditionLogic === 'OR' ? 'OR' : 'AND',
     conditions: (r.conditions || []).map(c => ({ ...c, field: c.field || 'rule.description', operator: c.operator || 'contains', value: c.value || '', logic: c.logic || 'AND' })),
     actions: (r.actions?.length ? r.actions : [{ type: 'alert', params: { severity: 'high', message: '' } }]).map(a => ({ ...a, params: a.params || {} })),
@@ -461,9 +462,15 @@ export default function RuleBuilder() {
                   <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#9ca3af]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9M16.376 3.622a1 1 0 013.002 3.002L7.368 18.635a2 2 0 01-.855.506l-2.872.838a.5.5 0 01-.62-.62l.838-2.872a2 2 0 01.506-.854z"/></svg>
                   <input className="ginput w-full pl-8 text-sm font-semibold py-2" value={editing.name} onChange={e => patch({ name: e.target.value })} placeholder="Rule name" />
                 </div>
-                <div className="flex items-center gap-2 shrink-0 ml-auto">
-                  <span className="text-[10px] text-[#9ca3af] font-medium uppercase tracking-wider">{editing.enabled ? 'Enabled' : 'Disabled'}</span>
-                  <Toggle checked={editing.enabled} onChange={() => patch({ enabled: !editing.enabled })} />
+                <div className="flex items-center gap-3 shrink-0 ml-auto">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-[10px] font-medium uppercase tracking-wider ${editing.overwrite ? 'text-purple-600 dark:text-purple-400' : 'text-[#9ca3af]'}`}>Overwrite</span>
+                    <Toggle checked={editing.overwrite} onChange={() => patch({ overwrite: !editing.overwrite })} />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-[#9ca3af] font-medium uppercase tracking-wider">{editing.enabled ? 'Enabled' : 'Disabled'}</span>
+                    <Toggle checked={editing.enabled} onChange={() => patch({ enabled: !editing.enabled })} />
+                  </div>
                 </div>
               </div>
 

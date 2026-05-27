@@ -4,13 +4,6 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Wazuh SOC Dashboard</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-tailwind.config={darkMode:['class','[data-theme="dark"]'],theme:{extend:{}}}
-</script>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
 :root{--bg:#0f1923;--bg2:#1a2633;--bg3:#0d151e;--text:#e0e0e0;--text2:#78909c;--border:#263238;--accent:#00bcd4;--hover:#263238;--card-border:#00bcd4;--tbl-hover:#1a2633}
 [data-theme="light"]{--bg:#f5f5f5;--bg2:#ffffff;--bg3:#e8e8e8;--text:#212121;--text2:#757575;--border:#bdbdbd;--accent:#00838f;--hover:#e0e0e0;--card-border:#00838f;--tbl-hover:#f0f0f0}
@@ -75,10 +68,10 @@ h1{color:var(--accent);font-weight:300;letter-spacing:1px;display:inline-block}
 .disc-fields .field-row.selected .name{color:#fff}
 .disc-fields .field-row.selected .count{background:rgba(255,255,255,.2);color:#fff}
 .disc-main{flex:1;min-width:0}
-.disc-top{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
-.disc-top input[type=text]{flex:1;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:6px;font-size:14px;font-family:monospace}
-.disc-top input[type=text]:focus{border-color:var(--accent);outline:0}
-.disc-top select{background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-size:13px}
+
+.filter-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.filter-chip{background:var(--bg2);border:1px solid var(--accent);color:var(--accent);padding:4px 10px;border-radius:16px;font-size:12px;display:flex;align-items:center;gap:6px}
+.filter-chip .close{cursor:pointer;opacity:.7;font-size:14px}.filter-chip .close:hover{opacity:1}
 .histogram{background:var(--bg2);border-radius:8px;padding:16px;margin-bottom:12px;overflow-x:auto}
 .histogram .bars{display:flex;align-items:end;gap:2px;height:80px}
 .histogram .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;min-width:20px}
@@ -87,86 +80,43 @@ h1{color:var(--accent);font-weight:300;letter-spacing:1px;display:inline-block}
 .histogram .bar-col .h-label{font-size:9px;color:var(--text2);margin-top:2px;white-space:nowrap;transform:rotate(-45deg)}
 .disc-toggle{font-size:11px;color:var(--text2);cursor:pointer;padding:2px 6px;border-radius:4px;border:1px solid var(--border);background:0 0;margin-bottom:8px;display:inline-block}
 .disc-toggle:hover{background:var(--hover)}
-.doc-expanded{background:var(--bg3);border-top:2px solid var(--accent)}
-.doc-expand-header{display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:4px}
-.doc-expand-title{font-size:13px;font-weight:600;color:var(--accent)}
-.doc-tabs{display:flex;gap:2px}
-.doc-tab{padding:4px 14px;font-size:12px;border:none;background:0 0;color:var(--text2);cursor:pointer;border-radius:4px 4px 0 0;font-weight:600}
-.doc-tab.active{color:var(--accent);background:var(--bg3)}
-.doc-view-panel{display:none}
-.doc-view-panel.active{display:block}
-.doc-field-table{width:100%;border-collapse:collapse;font-size:12px}
-.doc-field-table td{padding:4px 8px;border-bottom:1px solid var(--border);vertical-align:top;line-height:1.6}
-.doc-actions{white-space:nowrap;width:96px}
-.doc-action-btn{background:0 0;border:none;color:var(--text2);cursor:pointer;padding:2px 5px;border-radius:3px;font-size:11px;line-height:1;transition:.15s;opacity:.6}
-.doc-action-btn:hover{opacity:1;color:var(--accent);background:var(--hover)}
-.doc-field-icon{display:inline-block;width:13px;height:13px;vertical-align:middle;margin-right:3px;color:var(--text2)}
-.doc-field-icon svg{width:13px;height:13px;display:block;fill:currentColor}
-.doc-field-name{color:var(--text);font-weight:500;vertical-align:middle;font-size:12px}
-.doc-value{color:var(--text2);word-break:break-all;font-family:monospace;font-size:11px;max-width:500px}
-.doc-json-pre{background:var(--bg3);padding:16px;margin:0;font-size:11px;overflow-x:auto;max-height:500px;color:var(--text);line-height:1.5}
-.doc-chips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
-.doc-chip{display:inline-flex;align-items:center;gap:4px;background:var(--bg2);border:1px solid var(--accent);color:var(--accent);padding:2px 10px;border-radius:12px;font-size:11px}
-.doc-chip .remove{cursor:pointer;font-weight:700;margin-left:4px;color:var(--text2)}
-.doc-chip .remove:hover{color:#f44336}
-.cell-val{vertical-align:middle}
-.cell-filters{display:none;white-space:nowrap;margin-left:3px;vertical-align:middle}
-td:hover .cell-filters{display:inline-flex;gap:1px}
-.cell-filter-btn{padding:1px 2px;opacity:.5}
-.cell-filter-btn:hover{opacity:1}
-.cell-filter-btn svg{width:12px;height:12px;display:block;fill:currentColor}
 [data-theme="light"] .crit,[data-theme="system"] .crit{background:#d32f2f}
-.date-picker{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:2px 6px}
-.date-q-wrap{position:relative}
-.date-q-btn{background:0 0;border:none;color:var(--text2);cursor:pointer;padding:4px 6px;border-radius:4px;font-size:15px;line-height:1}
-.date-q-btn:hover{background:var(--hover);color:var(--accent)}
-.date-q-menu{display:none;position:absolute;top:100%;left:0;z-index:100;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:4px;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
-.date-q-menu.show{display:block}
-.date-q-item{padding:6px 12px;cursor:pointer;font-size:12px;color:var(--text);border-radius:4px}
-.date-q-item:hover{background:var(--hover);color:var(--accent)}
-.date-q-item.active{background:var(--accent);color:#fff}
-.date-inline{display:flex;align-items:center;gap:4px}
-.date-in{background:0 0;border:none;color:var(--text);font-size:12px;font-family:monospace;padding:4px 6px;width:130px;outline:0}
-.date-in:focus{color:var(--accent)}
-.date-sep{color:var(--text2);font-size:13px;padding:0 2px}
-.refresh-btn{background:var(--accent);border:none;color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:.2s}
-.refresh-btn:hover{opacity:.85}
-/* OSD query bar */
-.query-bar{background:var(--bg2);border-radius:8px;border:1px solid var(--border);margin-bottom:12px}
-.query-bar-main{display:flex;gap:8px;padding:6px 8px;flex-wrap:wrap;align-items:center}
-.qb-left{flex:1;display:flex;align-items:center;gap:4px;min-width:200px}
-.qb-saved{background:0 0;border:none;color:var(--text2);cursor:pointer;padding:4px 6px;border-radius:4px;font-size:15px;line-height:1;flex-shrink:0}
-.qb-saved:hover{background:var(--hover);color:var(--accent)}
-.qb-input{flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:13px;font-family:monospace;outline:0;min-width:100px}
-.qb-input:focus{border-color:var(--accent)}
-.qb-lang{background:var(--bg3);border:1px solid var(--border);color:var(--accent);padding:6px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:default;flex-shrink:0;border-left:0;border-radius:0 6px 6px 0}
-.qb-right{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.qb-date{display:flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:2px 4px}
-.qb-date-pretty{display:flex;align-items:center;gap:8px;cursor:pointer;padding:3px 8px;border-radius:4px;white-space:nowrap}
-.qb-date-pretty:hover{background:var(--hover)}
-.qb-date-label{font-size:12px;color:var(--text)}
-.qb-date-toggle{font-size:11px;color:var(--accent);text-decoration:underline dotted}
-.qb-date-toggle:hover{text-decoration:underline}
-.qb-date-expanded{display:none;align-items:center;gap:4px}
-.qb-refresh{background:var(--accent);border:none;color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap}
-.qb-refresh:hover{opacity:.85}
-.qb-limit{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:12px;cursor:pointer}
-/* OSD filter bar */
-.filter-bar-wrap{display:flex;align-items:center;gap:6px;padding:4px 8px 8px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:8px;margin-top:0}
-.filter-action-btn{background:0 0;border:none;color:var(--text2);cursor:pointer;padding:4px 6px;border-radius:4px;font-size:14px;line-height:1;flex-shrink:0}
-.filter-action-btn:hover{background:var(--hover);color:var(--accent)}
-.filter-bar{display:flex;flex-wrap:wrap;gap:4px;flex:1}
-.filter-badge{display:inline-flex;align-items:center;background:var(--bg3);border:1px solid var(--border);border-radius:12px;font-size:11px;overflow:hidden}
-.filter-badge.negated{border-color:#d32f2f44}
-.filter-badge-main{background:0 0;border:none;color:var(--text);padding:3px 8px;cursor:pointer;white-space:nowrap}
-.filter-badge-main:hover{background:var(--hover)}
-.filter-badge-val{color:var(--accent);font-weight:500}
-.filter-badge-neg{color:#f44336;font-weight:600}
-.filter-badge-x{background:0 0;border:none;color:var(--text2);cursor:pointer;padding:3px 6px;font-size:13px;line-height:1;border-left:1px solid var(--border)}
-.filter-badge-x:hover{color:#f44336;background:var(--hover)}
-.add-filter-btn{background:0 0;border:1px dashed var(--border);color:var(--text2);padding:3px 12px;border-radius:12px;cursor:pointer;font-size:11px;flex-shrink:0}
-.add-filter-btn:hover{border-color:var(--accent);color:var(--accent)}
-
+.osdDocActionBtn{cursor:pointer;background:none;border:none;color:var(--text2);padding:2px;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;transition:.15s}
+.osdDocActionBtn:hover{color:var(--accent);background:var(--hover)}
+td.osdDocViewer__buttons{white-space:nowrap;width:80px}
+td.osdDocViewer__field{padding:4px 8px}
+.doc-tab{background:var(--bg3);border:none;padding:8px 16px;cursor:pointer;font-size:12px;color:var(--text2);border-bottom:2px solid transparent;transition:.15s}
+.doc-tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600;background:var(--bg2)}
+.doc-tab:hover{color:var(--text1);background:var(--bg2)}
+.qbar{border:1px solid var(--border);border-radius:8px;background:var(--bg2);margin-bottom:8px;overflow:hidden}
+.qbar-row{display:flex;align-items:center;gap:6px;padding:4px 8px;flex-wrap:nowrap}
+.qbar-btn,.qbar-saved-btn{background:0 0;border:none;color:var(--text2);cursor:pointer;padding:4px;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:.15s}
+.qbar-btn:hover,.qbar-saved-btn:hover{background:var(--hover);color:var(--text)}
+.qbar-input-wrap{flex:1;display:flex;align-items:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;overflow:hidden;min-width:0}
+.qbar-popover-wrap{display:flex;align-items:center;padding:0 4px;border-right:1px solid var(--border);height:100%;flex-shrink:0}
+.qbar-textarea{flex:1;background:0 0;border:none;color:var(--text);padding:6px 8px;font-size:13px;font-family:monospace;resize:none;outline:0;min-height:28px;line-height:1.4}
+.qbar-lang-switch{display:flex;align-items:center;border-left:1px solid var(--border);flex-shrink:0}
+.qbar-lang-btn{background:0 0;border:none;color:var(--accent);font-size:11px;font-weight:600;padding:4px 8px;cursor:pointer;letter-spacing:.5px;transition:.15s}
+.qbar-lang-btn:hover{color:var(--text)}
+.qbar-datepicker{display:flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:2px 6px;flex-shrink:0}
+.qbar-date-btn{background:0 0;border:none;color:var(--text2);cursor:pointer;padding:2px;border-radius:3px;display:flex}
+.qbar-date-btn:hover{color:var(--text)}
+.qbar-date-range{background:0 0;border:none;color:var(--text);font-size:12px;cursor:pointer;padding:2px 4px;border-radius:3px;white-space:nowrap}
+.qbar-date-range:hover{background:var(--hover)}
+.qbar-date-sep{color:var(--text2);font-size:11px}
+.qbar-time-select,.qbar-limit-select{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:6px;font-size:11px;cursor:pointer;flex-shrink:0}
+.qbar-refresh{background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;flex-shrink:0;transition:.15s}
+.qbar-refresh:hover{opacity:.85}
+.filter-bar-row{padding:6px 12px 10px;display:flex;align-items:center;border-top:1px solid var(--border)}
+.filter-bar-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%}
+.filter-badges{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.filter-badge{display:inline-flex;align-items:center;gap:4px;background:0 0;border:1px solid var(--accent);border-radius:16px;padding:3px 10px;font-size:12px;color:var(--accent)}
+.filter-badge-label{color:var(--accent);font-size:12px}
+.filter-badge-label-val{color:var(--text)}
+.filter-badge-close{background:0 0;border:none;color:var(--text2);cursor:pointer;font-size:14px;padding:0 0 0 4px;line-height:1;transition:.15s;display:inline-flex;align-items:center}
+.filter-badge-close:hover{color:var(--text)}
+.qbar-add-filter{background:0 0;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:4px 8px;border-radius:4px;display:flex;align-items:center;gap:4px;transition:.15s}
+.qbar-add-filter:hover{background:var(--hover)}
 @media(max-width:700px){.grid-2{grid-template-columns:1fr}.disc-layout{flex-direction:column}.disc-fields{width:100%;max-height:200px}}
 </style>
 </head>
@@ -192,27 +142,61 @@ td:hover .cell-filters{display:inline-flex;gap:1px}
 </div>
 
 <div class="panel active" id="panel-discover">
-  <div class="query-bar">
-    <div class="query-bar-main">
-      <div class="qb-left">
-        <button class="qb-saved" title="Saved queries">📂</button>
-        <input type="text" id="dqlInput" class="qb-input" placeholder='Search — rule.level:[12 TO 15] OR data.win.system.eventID:"4625"' spellcheck="false" />
-        <span class="qb-lang">DQL</span>
+  <div class="qbar">
+    <div class="qbar-row">
+      <button class="qbar-btn" onclick="discoverSearch()" title="Refresh results" aria-label="Refresh">↻</button>
+      <div class="qbar-input-wrap">
+        <div class="qbar-popover-wrap">
+          <button class="qbar-saved-btn" title="See saved queries" aria-label="See saved queries">
+            <svg width="14" height="14" viewBox="0 0 16 16"><path d="M5.008 2H2.282c-.181 0-.245.002-.275.007-.005.03-.007.094-.007.275v11.436c0 .181.002.245.007.275.03.005.094.007.275.007h11.436c.181 0 .245-.002.275-.007.005-.03.007-.094.007-.275V4.62c0-.13-.001-.18-.004-.204a2.654 2.654 0 0 0-.141-.147L11.73 2.145a2.654 2.654 0 0 0-.147-.141A2.654 2.654 0 0 0 11.38 2h-.388c.005.08.008.172.008.282v2.436c0 .446-.046.607-.134.77a.909.909 0 0 1-.378.378c-.163.088-.324.134-.77.134H6.282c-.446 0-.607-.046-.77-.134a.909.909 0 0 1-.378-.378C5.046 5.325 5 5.164 5 4.718V2.282c0-.11.003-.202.008-.282Z" fill="currentColor"/><path d="M2.282 1h9.098c.259 0 .348.01.447.032a.87.87 0 0 1 .273.113c.086.054.156.11.338.293l2.124 2.124c.182.182.239.252.293.338a.87.87 0 0 1 .113.273c.023.1.032.188.032.447v9.098c0 .446-.046.607-.134.77a.909.909 0 0 1-.378.378c-.163.088-.324.134-.77.134H2.282c-.446 0-.607-.046-.77-.134a.909.909 0 0 1-.378-.378c-.088-.163-.134-.324-.134-.77V2.282c0-.446.046-.607.134-.77a.909.909 0 0 1 .378-.378c.163-.088.324-.134.77-.134ZM6 2.282v2.436c0 .181.002.245.007.275.03.005.094.007.275.007h3.436c.181 0 .245-.002.275-.007.005-.03.007-.094.007-.275V2.282c0-.181-.002-.245-.007-.275A2.248 2.248 0 0 0 9.718 2H6.282c-.181 0-.245.002-.275.007-.005.03-.007.094-.007.275Z" fill="currentColor"/></svg>
+          </button>
+        </div>
+        <textarea id="dqlInput" class="qbar-textarea" rows="1" placeholder="Search" spellcheck="false" aria-label="Start typing to search and filter the discover page"></textarea>
+        <div class="qbar-lang-switch">
+          <button class="qbar-lang-btn" title="Change query language">DQL</button>
+        </div>
       </div>
-      <div class="qb-right">
-          <div id="datePickerMount"></div>
-          <input type="hidden" id="dStartDate" value="now-24h" />
-          <input type="hidden" id="dEndDate" value="now" />
-          <select class="qb-limit" id="dLimit"><option>20</option><option selected>50</option><option>100</option><option>200</option><option>500</option></select>
-        <button class="qb-refresh" onclick="discoverSearch()">⟳ Refresh</button>
+      <div class="qbar-datepicker">
+        <button class="qbar-date-btn" title="Date quick select" aria-label="Date quick select">
+          <svg width="14" height="14" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M14 4v-.994C14 2.45 13.55 2 12.994 2H11v1h-1V2H6v1H5V2H3.006C2.45 2 2 2.45 2 3.006v9.988C2 13.55 2.45 14 3.006 14h9.988C13.55 14 14 13.55 14 12.994V5H2V4h12zm-3-3h1.994C14.102 1 15 1.897 15 3.006v9.988A2.005 2.005 0 0 1 12.994 15H3.006A2.005 2.005 0 0 1 1 12.994V3.006C1 1.898 1.897 1 3.006 1H5V0h1v1h4V0h1v1zM4 7h2v1H4V7zm3 0h2v1H7V7zm3 0h2v1h-2V7zM4 9h2v1H4V9zm3 0h2v1H7V9zm3 0h2v1h-2V9zm-6 2h2v1H4v-1zm3 0h2v1H7v-1zm3 0h2v1h-2v-1z" fill="currentColor"></path></svg>
+        </button>
+        <button class="qbar-date-range" id="dStartBtn" onclick="document.getElementById('dTime').focus()" title="Start date">~ a day ago</button>
+        <span class="qbar-date-sep">→</span>
+        <button class="qbar-date-range" id="dEndBtn" onclick="document.getElementById('dTime').focus()" title="End date">now</button>
       </div>
-    </div>
-    <div class="filter-bar-wrap">
-      <button class="filter-action-btn" title="Filter actions" onclick="dClearAllFilters()">🔽</button>
-      <div class="filter-bar" id="dFilterBar"></div>
-      <button class="add-filter-btn" onclick="dShowAddFilter()">＋ Add filter</button>
+      <select id="dTime" class="qbar-time-select" onchange="updateDateLabels();discoverSearch()">
+        <option value="1h">Last 1 hour</option>
+        <option value="24h" selected>Last 24 hours</option>
+        <option value="7d">Last 7 days</option>
+        <option value="30d">Last 30 days</option>
+        <option value="all">All time</option>
+      </select>
+      <select id="dLimit" class="qbar-limit-select">
+        <option>20</option><option selected>50</option><option>100</option><option>200</option><option>500</option>
+      </select>
+      <button class="qbar-refresh" onclick="discoverSearch()" title="Refresh">
+        <svg width="14" height="14" viewBox="0 0 16 16"><path d="M11.228 2.942a.5.5 0 1 1-.538.842A5 5 0 1 0 13 8a.5.5 0 1 1 1 0 6 6 0 1 1-2.772-5.058ZM14 1.5v3A1.5 1.5 0 0 1 12.5 6h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 1 1 1 0Z" fill="currentColor"></path></svg>
+        <span>Refresh</span>
+      </button>
     </div>
   </div>
+  <div class="filter-bar-row" id="dFilterBar">
+    <div class="filter-bar-left">
+      <div class="qbar-popover-wrap">
+        <button class="qbar-saved-btn" title="Filter actions" aria-label="Filter actions">
+          <svg width="14" height="14" viewBox="0 0 16 16"><path fill-rule="evenodd" d="m9.759 12.652-1.8 2.25-.78-.625 1.8-2.25A.1.1 0 0 0 9 11.965V8.362a1 1 0 0 1 .232-.64l4.631-5.558A.1.1 0 0 0 13.787 2H2.213a.1.1 0 0 0-.077.164l4.631 5.558a1 1 0 0 1 .232.64v5.853a.1.1 0 0 0 .178.062l.781.625c-.65.812-1.959.353-1.959-.687V8.362L1.368 2.804C.771 2.088 1.281 1 2.214 1h11.573c.932 0 1.442 1.088.845 1.804L10 8.362v3.603a1.1 1.1 0 0 1-.241.687Z" fill="currentColor"></path></svg>
+        </button>
+      </div>
+      <div class="filter-badges" id="dFilterBadges">
+        <span class="filter-badge" id="dActiveFilter" style="display:none">
+          <span class="filter-badge-label" id="dFilterLabel"><span class="filter-badge-label-val"></span></span>
+          <button class="filter-badge-close" onclick="clearFilter()" aria-label="Delete" title="Delete"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M7.293 8 3.146 3.854a.5.5 0 1 1 .708-.708L8 7.293l4.146-4.147a.5.5 0 0 1 .708.708L8.707 8l4.147 4.146a.5.5 0 0 1-.708.708L8 8.707l-4.146 4.147a.5.5 0 0 1-.708-.708L7.293 8Z"></path></svg></button>
+        </span>
+      </div>
+      <button class="qbar-add-filter" onclick="addDiscoverFilter()">+ Add filter</button>
+    </div>
+  </div>
+  <div class="filter-chips" id="dChips"></div>
   <div class="disc-layout">
     <div class="disc-fields" id="dFields">
       <div class="dfs-source">
@@ -497,7 +481,7 @@ loadGeo()
 
 // ==================== DISCOVER ====================
 let dColumns=['@timestamp','rule.id','rule.level','rule.description','agent.name']
-let dFieldList=[],dFieldCache=null,dFilters=[]
+let dFieldList=[],dFieldCache=null
 
 async function discoverLoadFields(){
   try{
@@ -544,105 +528,27 @@ function discoverAddColumn(){
   if(f&&f.trim()){dColumns.push(f.trim());renderFields(dFieldList);discoverSearch()}
 }
 
-function parseDateStr(s){
-  if(!s||s==='now')return new Date()
-  s=s.trim()
-  const now=new Date()
-  if(s==='now/d'){const d=new Date(now);d.setHours(0,0,0,0);return d}
-  if(s==='now/w'){const d=new Date(now);const day=d.getDay();d.setDate(d.getDate()-day);d.setHours(0,0,0,0);return d}
-  const m=s.match(/^now[+-](\d+)([smhdwMy])(?:\/([hdwMy]))?$/)
-  if(m){
-    const n=parseInt(m[1]),unit=m[2],round=m[3]
-    const d=new Date(now)
-    if(unit==='s')d.setSeconds(d.getSeconds()-n)
-    else if(unit==='m')d.setMinutes(d.getMinutes()-n)
-    else if(unit==='h')d.setHours(d.getHours()-n)
-    else if(unit==='d')d.setDate(d.getDate()-n)
-    else if(unit==='w')d.setDate(d.getDate()-n*7)
-    else if(unit==='M')d.setMonth(d.getMonth()-n)
-    else if(unit==='y')d.setFullYear(d.getFullYear()-n)
-    if(round==='d')d.setHours(0,0,0,0)
-    else if(round==='h')d.setMinutes(0,0,0)
-    else if(round==='M'){d.setDate(1);d.setHours(0,0,0,0)}
-    else if(round==='y'){d.setMonth(0,1);d.setHours(0,0,0,0)}
-    return d
-  }
-  const iso=new Date(s)
-  if(!isNaN(iso))return iso
-  return now
-}
-function resolveTimeRange(){
-  const rawStart=document.getElementById('dStartDate').value.trim()
-  const rawEnd=document.getElementById('dEndDate').value.trim()
-  const start=parseDateStr(rawStart)
-  const end=parseDateStr(rawEnd)
-  return{start_date:start.toISOString(),end_date:end.toISOString()}
-}
-function toggleQuickSelect(){
-  document.getElementById('dQMenu').classList.toggle('show')
-}
-function setQuickDate(val){
-  document.getElementById('dStartDate').value='now-'+val
-  document.getElementById('dEndDate').value='now'
-  document.getElementById('dQMenu').querySelectorAll('.date-q-item').forEach(el=>el.classList.toggle('active',el.dataset.val===val))
-  document.getElementById('dQMenu').classList.remove('show')
-  updateDateLabel(val)
-  discoverSearch()
-}
-function toggleDateExpanded(){
-  const p=document.getElementById('dDatePretty'),e=document.getElementById('dDateExpanded')
-  const showingExpanded=e.style.display!=='none'
-  p.style.display=showingExpanded?'':'none'
-  e.style.display=showingExpanded?'none':'flex'
-}
-function updateDateLabel(val){
-  const names={'15m':'15 minutes','1h':'1 hour','24h':'24 hours','7d':'7 days','30d':'30 days','90d':'90 days'}
-  document.getElementById('dDateLabel').textContent='Last '+(names[val]||val)
-}
-document.addEventListener('click',function(e){
-  const menu=document.getElementById('dQMenu')
-  if(!e.target.closest('.date-q-wrap')&&menu.classList.contains('show'))menu.classList.remove('show')
-  const qi=e.target.closest('.date-q-item')
-  if(qi)setQuickDate(qi.dataset.val)
-})
-let dSortField='@timestamp',dSortOrder='desc'
-function doSort(field){
-  if(dSortField===field)dSortOrder=dSortOrder==='asc'?'desc':'asc'
-  else{dSortField=field;dSortOrder='desc'}
-  discoverSearch()
-}
-function moveColumn(field,dir){
-  const i=dColumns.indexOf(field)
-  if(i<0)return
-  const j=i+dir
-  if(j<0||j>=dColumns.length)return
-  const t=dColumns.splice(i,1)[0];dColumns.splice(j,0,t)
-  renderFields(dFieldList);discoverSearch()
-}
 async function discoverSearch(){
-  const q=buildDql()
+  updateDateLabels()
+  const q=document.getElementById('dqlInput').value.trim()
+  const timeRange=document.getElementById('dTime').value
   const limit=parseInt(document.getElementById('dLimit').value)||50
   const index=document.getElementById('dIndex').value
-  const params={limit,index}
-  if(q)params.q=q
-  const tr=resolveTimeRange()
-  params.start_date=tr.start_date
-  params.end_date=tr.end_date
-  if(dSortField){params.sort=dSortField;params.order=dSortOrder}
+  const params={q,limit,index}
+
+  if(timeRange!=='all'){
+    const now=new Date()
+    const m=parseInt(timeRange)
+    if(timeRange.includes('h'))params.start_date=new Date(now-m*3600000).toISOString()
+    else if(timeRange.includes('d'))params.start_date=new Date(now-m*86400000).toISOString()
+    params.end_date=now.toISOString()
+  }
 
   try{
     document.getElementById('dResults').innerHTML='<div class="loading">⏳ Searching...</div>'
     const d=await api('search',params)
-    const total=d.total||0
-    let results=d.results||[]
-    const haveClientFilters=dFilters.some(f=>f.negate||f.type==='exists')
-    if(haveClientFilters){
-      const before=results.length
-      results=applyClientFilters(results)
-      document.getElementById('dTotal').innerHTML=`<b>${total.toLocaleString()}</b> results (<b>${results.length}</b> shown of ${before})`
-    }else{
-      document.getElementById('dTotal').innerHTML=`<b>${total.toLocaleString()}</b> results (${results.length} shown)`
-    }
+    const total=d.total||0,results=d.results||[]
+    document.getElementById('dTotal').innerHTML=`<b>${total.toLocaleString()}</b> results (${results.length} shown)`
     document.getElementById('dResults').innerHTML=discoverRenderTable(results)
     discoverLoadHistogram(params)
     discoverLoadFields()
@@ -651,202 +557,146 @@ async function discoverSearch(){
 
 function discoverRenderTable(results){
   if(!results.length)return '<div class="loading">No results</div>'
-  const sortCls=f=>dSortField===f?'sort-'+dSortOrder:'sort-none'
-  let h=`<table><thead><tr><th style="width:30px"></th>${dColumns.map(c=>`<th class="th-col"><div class="th-wrap"><span class="th-name" onclick="toggleFieldColumn('${c}');renderFields(dFieldList);discoverSearch()" title="Remove column">${c}</span><span class="th-actions"><span class="th-act ${sortCls(c)}" onclick="doSort('${c}')" title="Sort ${dSortField===c&&dSortOrder==='asc'?'descending':'ascending'}"><svg width="10" height="10" viewBox="0 0 16 16"><path d="M7 12.786V3.2L3.604 6.596a.5.5 0 0 1-.708-.707l3.536-3.535a1.5 1.5 0 0 1 2.121 0l3.536 3.535a.5.5 0 0 1-.707.707L8 3.214v9.557l3.382-3.382a.5.5 0 0 1 .707.707l-3.536 3.536a1.5 1.5 0 0 1-2.121 0l-3.536-3.536a.5.5 0 0 1 .708-.707L7 12.786Z"/></svg></span><span class="th-act" onclick="moveColumn('${c}',-1)" title="Move left">◀</span><span class="th-act" onclick="moveColumn('${c}',1)" title="Move right">▶</span><span class="th-act th-remove" onclick="toggleFieldColumn('${c}');renderFields(dFieldList);discoverSearch()" title="Remove column">✕</span></span></div></th>`).join('')}</tr></thead><tbody>`
+  let h=`<table><thead><tr><th style="width:30px"></th>${dColumns.map(c=>`<th onclick="dColumns.splice(dColumns.indexOf('${c}'),1);renderFields(dFieldList);discoverSearch()" style="cursor:pointer" title="Remove column">${c} ×</th>`).join('')}</tr></thead><tbody>`
   results.slice(0,200).forEach((a,i)=>{
-    const rowId='dr'+i
-    h+=`<tr onclick="toggleDocRow('${rowId}')" style="cursor:pointer">`
-    h+=`<td style="color:var(--text2);font-size:12px" id="${rowId}-icon">▶</td>`
+    const rowId='dr'+i, tabId='dt'+i
+    const jsonStr=JSON.stringify(a,null,2).replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    const fieldsHtml=Object.entries(flattenObj(a)).map(([k,v])=>{
+      const val=String(v??'').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      const escK=k.replace(/</g,'&lt;')
+      const t=typeof v
+      let tokenSvg=''
+      if(t==='number'||(!isNaN(v)&&v!==''&&v!==true&&v!==false&&v!==null&&v!==undefined)){
+        tokenSvg='<svg width="16" height="16" viewBox="0 0 16 16" class="euiIcon euiIcon--medium" focusable="false" role="img" aria-label="Number field"><title>Number field</title><path d="M7.8 9.812h-.842l-.78 2.335H5.031l.78-2.335H4.6l.182-1.043h1.373l.507-1.504H5.454l.188-1.042h1.367l.792-2.37H8.94l-.792 2.37h.849l.792-2.37h1.145l-.792 2.37H11.4l-.182 1.042H9.8L9.293 8.77h1.248l-.183 1.043H8.946l-.775 2.335H7.026L7.8 9.812Zm-.5-1.043h.842l.513-1.504h-.849L7.3 8.77Z" fill="currentColor"></path></svg>'
+      }else if(t==='boolean'){
+        tokenSvg='<svg width="16" height="16" viewBox="0 0 16 16" class="euiIcon euiIcon--medium" focusable="false" role="img" aria-label="Boolean field"><title>Boolean field</title><path fill-rule="evenodd" d="M8 13A5 5 0 1 1 8 3a5 5 0 0 1 0 10Zm-2.828-2.172a4 4 0 0 1 5.656-5.656c.004.013-5.645 5.674-5.656 5.656Z" fill="currentColor"></path></svg>'
+      }else if(v instanceof Date||k==='@timestamp'||k==='timestamp'){
+        tokenSvg='<svg width="16" height="16" viewBox="0 0 16 16" class="euiIcon euiIcon--medium" focusable="false" role="img" aria-label="Date field"><title>Date field</title><path fill-rule="evenodd" d="M13 11.567C13 12.36 12.36 13 11.567 13H4.433C3.64 13 3 12.36 3 11.567V4.433C3 3.64 3.64 3 4.433 3H6v-.495a.51.51 0 0 1 .412-.497L6.5 2c.276 0 .5.214.5.505V3h2v-.495a.51.51 0 0 1 .412-.497L9.5 2c.276 0 .5.214.5.505V3h1.567C12.36 3 13 3.64 13 4.433v7.134ZM4 6v5.33c0 .37.3.67.67.67h6.66c.37 0 .67-.3.67-.67V6H4Zm1.5 4c.245 0 .45.183.492.412L6 10.5c0 .245-.183.45-.412.492L5.5 11a.505.505 0 0 1-.5-.5c0-.245.183-.45.412-.492L5.5 10ZM8 10c.245 0 .45.183.492.412l.008.088c0 .245-.183.45-.412.492L8 11a.505.505 0 0 1-.5-.5c0-.245.183-.45.412-.492L8 10Zm2.5 0c.245 0 .45.183.492.412L11 10.5c0 .245-.183.45-.412.492L10.5 11a.505.505 0 0 1-.5-.5c0-.245.183-.45.412-.492L10.5 10Zm-5-1.5c.245 0 .45.183.492.412L6 9c0 .245-.183.45-.412.492L5.5 9.5A.505.505 0 0 1 5 9c0-.245.183-.45.412-.492L5.5 8.5Zm2.5 0c.245 0 .45.183.492.412L8.5 9c0 .245-.183.45-.412.492L8 9.5a.505.505 0 0 1-.5-.5c0-.245.183-.45.412-.492L8 8.5Zm2.5 0c.245 0 .45.183.492.412L11 9c0 .245-.183.45-.412.492L10.5 9.5A.505.505 0 0 1 10 9c0-.245.183-.45.412-.492L10.5 8.5ZM5.5 7c.245 0 .45.183.492.412L6 7.5c0 .245-.183.45-.412.492L5.5 8a.505.505 0 0 1-.5-.5c0-.245.183-.45.412-.492L5.5 7ZM8 7c.245 0 .45.183.492.412L8.5 7.5c0 .245-.183.45-.412.492L8 8a.505.505 0 0 1-.5-.5c0-.245.183-.45.412-.492L8 7Zm2.5 0c.245 0 .45.183.492.412L11 7.5c0 .245-.183.45-.412.492L10.5 8a.505.505 0 0 1-.5-.5c0-.245.183-.45.412-.492L10.5 7ZM4 5h8v-.33c0-.37-.3-.67-.67-.67H4.67C4.3 4 4 4.3 4 4.67V5Z" fill="currentColor"></path></svg>'
+      }else{
+        tokenSvg='<svg width="16" height="16" viewBox="0 0 16 16" class="euiIcon euiIcon--medium" focusable="false" role="img" aria-label="String field"><title>String field</title><path d="m9.147 4.297-.255 1.455h.936l-.222 1.266h-.935l-.455 2.688c-.025.184-.013.323.036.417.048.093.17.144.365.151.075.004.23-.005.465-.027l-.13 1.32c-.3.097-.618.142-.957.135-.552-.007-.965-.17-1.239-.487-.274-.317-.386-.748-.335-1.293l.476-2.904h-.725l.216-1.266h.725l.254-1.455h1.78Z" fill="currentColor"></path></svg>'
+      }
+      const escVal=val.replace(/'/g,"\\'").replace(/"/g,'&quot;')
+      return `<tr style="border-bottom:1px solid var(--border)" data-test-subj="tableDocViewRow-${escK.replace(/\./g,'-')}">
+        <td class="osdDocViewer__buttons" style="white-space:nowrap;padding:4px 6px;width:80px"><button onclick="filterForValue('${escK}','${escVal}')" class="osdDocActionBtn" title="Filter for value" aria-label="Filter for value"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M7 6h2.5a.5.5 0 0 1 0 1H7v2.5a.5.5 0 0 1-1 0V7H3.5a.5.5 0 0 1 0-1H6V3.5a.5.5 0 0 1 1 0V6Zm3.24 4.74c0-.117.04-.225.107-.31A5.478 5.478 0 0 0 12 6.5 5.5 5.5 0 1 0 6.5 12a.5.5 0 1 1 0 1 6.5 6.5 0 1 1 4.936-2.27l4.419 4.418a.5.5 0 0 1-.707.707l-4.768-4.768a.499.499 0 0 1-.14-.347Z"></path></svg></button>
+        <button onclick="filterOutValue('${escK}','${escVal}')" class="osdDocActionBtn" title="Filter out value" aria-label="Filter out value"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M9.5 6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1 0-1h6Zm.74 4.74c0-.117.04-.225.107-.31A5.478 5.478 0 0 0 12 6.5 5.5 5.5 0 1 0 6.5 12a.5.5 0 1 1 0 1 6.5 6.5 0 1 1 4.936-2.27l4.419 4.418a.5.5 0 0 1-.707.707l-4.768-4.768a.499.499 0 0 1-.14-.347Z"></path></svg></button>
+        <button onclick="toggleColumn('${escK}')" class="osdDocActionBtn" title="Toggle column in table" aria-label="Toggle column in table"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 1v14h14V1H1zM0 0h16v16H0V0zm9 1v14h1V1H9zM3 3.5h4v-1H3v1zm0 3h4v-1H3v1zm0 3h4v-1H3v1z"></path></svg></button>
+        <button onclick="filterExists('${escK}')" class="osdDocActionBtn" title="Filter for field present" aria-label="Filter for field present"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M12 2H2v11h6v1H1V1h12v6h-1V2ZM5 5h5.999V4H5v1ZM3 5V4h1v1H3Zm2 3V7h3v1H5ZM3 8V7h1v1H3Zm2 3v-1h2v1H5Zm5-1H8v1h2v2h1v-2h2v-1h-2V8h-1v2Zm-7 1v-1h1v1H3Zm7.5-5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z"></path></svg></button></td>
+        <td class="osdDocViewer__field" style="padding:4px 8px"><div style="display:flex;align-items:center;gap:6px"><span style="flex-shrink:0;display:flex;color:var(--text2)">${tokenSvg}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;font-size:12px;font-family:monospace;color:var(--accent)">${escK}</span></div></td>
+        <td style="padding:4px 8px;font-size:12px;word-break:break-all">${val.length>300?val.substring(0,300)+'…':val}</td></tr>`
+    }).join('')
+    h+=`<tr onclick="toggleRow('${rowId}','${tabId}')" style="cursor:pointer">`
+    h+=`<td style="color:var(--text2);font-size:12px" id="${tabId}icon">▶</td>`
     h+=dColumns.map(c=>{
-      let v=resolveField(a,c)
-      const raw=String(v??'')
-      const fldAttr=c.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
-      const valAttr=raw.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
-      let disp=''
-      if(c==='rule.level'){const l=parseInt(v)||0;disp=`<span class="level-badge ${l>=15?'lvl-15':l>=12?'lvl-12':l>=7?'lvl-7':'lvl-0'}">${v}</span>`}
-      else if(c==='@timestamp'||c==='timestamp')disp=`<span style="white-space:nowrap;color:var(--text2);font-size:12px">${raw.substring(0,19)}</span>`
-      else{let x=raw;if(x.length>80)x=x.substring(0,80)+'…';disp=x||'—'}
-      const btns=`<span class="cell-filters">
-        <button class="doc-action-btn cell-filter-btn" data-act="filterFor" data-field="${fldAttr}" data-value="${valAttr}" title="Filter for value"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 7h3.5a.5.5 0 1 1 0 1H8v3.5a.5.5 0 1 1-1 0V8H3.5a.5.5 0 0 1 0-1H7V3.5a.5.5 0 0 1 1 0V7Z"/></svg></button>
-        <button class="doc-action-btn cell-filter-btn" data-act="filterOut" data-field="${fldAttr}" data-value="${valAttr}" title="Filter out value"><svg viewBox="0 0 16 16"><path d="M3.5 7h8a.5.5 0 1 1 0 1h-8a.5.5 0 0 1 0-1Z"/></svg></button>
-      </span>`
-      return `<td><span class="cell-val">${disp}</span>${btns}</td>`
+      let v=resolveField(a,c),td=''
+      if(c==='rule.level'){const l=parseInt(v)||0;td=`<span class="level-badge ${l>=15?'lvl-15':l>=12?'lvl-12':l>=7?'lvl-7':'lvl-0'}">${v}</span>`}
+      else if(c==='@timestamp'||c==='timestamp')td=`<span style="white-space:nowrap;color:var(--text2);font-size:12px">${(v||'').substring(0,19)}</span>`
+      else{if(v&&String(v).length>80)v=String(v).substring(0,80)+'…';td=v||'—'}
+      return `<td>${td}</td>`
     }).join('')+'</tr>'
-    h+=`<tr id="${rowId}" style="display:none"><td colspan="${dColumns.length+1}" style="padding:0">${renderDocViewer(a)}</td></tr>`
+    h+=`<tr id="${rowId}" style="display:none"><td colspan="${dColumns.length+1}" style="padding:0;background:var(--bg3)">
+      <div style="border-bottom:1px solid var(--border);display:flex;gap:0">
+        <button onclick="switchDocView('${tabId}','table')" id="${tabId}btn-table" class="doc-tab active">Table</button>
+        <button onclick="switchDocView('${tabId}','json')" id="${tabId}btn-json" class="doc-tab">JSON</button>
+      </div>
+      <div id="${tabId}table"><table style="width:100%;font-size:12px">${fieldsHtml}</table></div>
+      <div id="${tabId}json" style="display:none"><pre style="padding:16px;margin:0;font-size:12px;overflow-x:auto;max-height:400px">${jsonStr}</pre></div>
+    </td></tr>`
   })
   return h+'</tbody></table>'
+}
+
+function flattenObj(obj,prefix=''){
+  let result={}
+  for(const[k,v]of Object.entries(obj||{})){
+    const key=prefix?`${prefix}.${k}`:k
+    if(v&&typeof v==='object'&&!Array.isArray(v))Object.assign(result,flattenObj(v,key))
+    else result[key]=v
+  }
+  return result
+}
+
+function toggleRow(rowId,tabId){
+  const row=document.getElementById(rowId)
+  const icon=document.getElementById(tabId+'icon')
+  if(row.style.display==='none'){row.style.display='table-row';icon.textContent='▼'}
+  else{row.style.display='none';icon.textContent='▶'}
+}
+
+function switchDocView(tabId,view){
+  document.getElementById(tabId+'btn-table').className='doc-tab'
+  document.getElementById(tabId+'btn-json').className='doc-tab'
+  document.getElementById(tabId+'table').style.display='none'
+  document.getElementById(tabId+'json').style.display='none'
+  document.getElementById(tabId+`btn-${view}`).className='doc-tab active'
+  document.getElementById(tabId+view).style.display='block'
+}
+
+function filterForValue(path,val){
+  const inp=document.getElementById('dqlInput')
+  const field=path.replace(/&lt;/g,'<')
+  const cleanVal=val.replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+  inp.value=(inp.value||'')+` ${field}:"${cleanVal}"`
+  setActiveFilter(`${field}: "${cleanVal}"`)
+  discoverSearch()
+}
+function filterOutValue(path,val){
+  const inp=document.getElementById('dqlInput')
+  const field=path.replace(/&lt;/g,'<')
+  const cleanVal=val.replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+  inp.value=(inp.value||'')+` NOT ${field}:"${cleanVal}"`
+  setActiveFilter(`NOT ${field}: "${cleanVal}"`)
+  discoverSearch()
+}
+function filterExists(path){
+  const inp=document.getElementById('dqlInput')
+  const field=path.replace(/&lt;/g,'<')
+  inp.value=(inp.value||'')+` ${field}:*`
+  setActiveFilter(`${field}: *`)
+  discoverSearch()
+}
+function toggleColumn(path){
+  const field=path.replace(/&lt;/g,'<')
+  const idx=dColumns.indexOf(field)
+  if(idx>=0)dColumns.splice(idx,1)
+  else dColumns.push(field)
+  renderFields(dFieldList);discoverSearch()
+}
+function setActiveFilter(label){
+  dActiveFilter=label
+  const colonIdx=label.indexOf(':')
+  if(colonIdx>=0){
+    const key=label.substring(0,colonIdx)
+    const val=label.substring(colonIdx+1)
+    document.getElementById('dFilterLabel').innerHTML=key+': <span class="filter-badge-label-val">'+val+'</span>'
+  }else{
+    document.getElementById('dFilterLabel').textContent=label
+  }
+  document.getElementById('dActiveFilter').style.display='inline-flex'
+}
+function updateDateLabels(){
+  const val=document.getElementById('dTime').value
+  const labels={1h:'~ an hour ago',24h:'~ a day ago',7d:'~ 7 days ago',30d:'~ 30 days ago',all:'The beginning'}
+  document.getElementById('dStartBtn').textContent=labels[val]||'Custom'
+  document.getElementById('dEndBtn').textContent=val==='all'?'now':'now'
+}
+let dActiveFilter=null
+function clearFilter(){
+  dActiveFilter=null
+  document.getElementById('dActiveFilter').style.display='none'
+  document.getElementById('dqlInput').value=''
+  discoverSearch()
+}
+function addDiscoverFilter(){
+  const f=prompt('Enter filter (e.g. agent.name: "chat-bot"):')
+  if(f&&f.trim()){
+    document.getElementById('dqlInput').value=f.trim()
+    setActiveFilter(f.trim())
+    discoverSearch()
+  }
 }
 function resolveField(obj,path){
   try{return path.split('.').reduce((o,p)=>o?.[p],obj)??''}catch(e){return ''}
 }
-function toggleDocRow(id){
-  const row=document.getElementById(id);const icon=document.getElementById(id+'-icon')
-  if(!row)return
-  if(row.style.display==='none'){row.style.display='table-row';if(icon)icon.textContent='▼'}
-  else{row.style.display='none';if(icon)icon.textContent='▶'}
-}
-function flattenObj(obj,prefix){
-  let result=[];prefix=prefix||''
-  if(obj===null||obj===undefined)return[{path:prefix||'value',value:null}]
-  if(typeof obj!=='object')return[{path:prefix||'value',value:obj}]
-  if(Array.isArray(obj)){
-    if(!obj.length)return[{path:prefix||'value',value:''}]
-    if(obj.every(v=>v===null||v===undefined||typeof v!=='object'))return[{path:prefix||'value',value:obj.join(', ')}]
-    return[{path:prefix||'value',value:JSON.stringify(obj)}]
-  }
-  const entries=Object.entries(obj)
-  if(!entries.length)return[{path:prefix||'value',value:''}]
-  for(const[k,v]of entries){
-    const path=prefix?prefix+'.'+k:k
-    if(v!==null&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length>0)
-      result=result.concat(flattenObj(v,path))
-    else result.push({path,value:v})
-  }
-  return result
-}
-function isNumericField(name){
-  if(!dFieldList||!dFieldList.length)return false
-  const f=dFieldList.find(f=>f.name===name)
-  return f?['long','integer','short','byte','float','double','number'].includes(f.type):false
-}
-function getFieldType(name){
-  if(!dFieldList||!dFieldList.length)return'string'
-  const f=dFieldList.find(f=>f.name===name)
-  return f?f.type:'string'
-}
-function getTypeIcon(type){
-  const icons={
-    string:'<svg viewBox="0 0 16 16"><path d="m9.147 4.297-.255 1.455h.936l-.222 1.266h-.935l-.455 2.688c-.025.184-.013.323.036.417.048.093.17.144.365.151.075.004.23-.005.465-.027l-.13 1.32c-.3.097-.618.142-.957.135-.552-.007-.965-.17-1.239-.487-.274-.317-.386-.748-.335-1.293l.476-2.904h-.725l.216-1.266h.725l.254-1.455h1.78Z"/></svg>',
-    number:'<svg viewBox="0 0 16 16"><path d="M7.8 9.812h-.842l-.78 2.335H5.031l.78-2.335H4.6l.182-1.043h1.373l.507-1.504H5.454l.188-1.042h1.367l.792-2.37H8.94l-.792 2.37h.849l.792-2.37h1.145l-.792 2.37H11.4l-.182 1.042H9.8L9.293 8.77h1.248l-.183 1.043H8.946l-.775 2.335H7.026L7.8 9.812Zm-.5-1.043h.842l.513-1.504h-.849L7.3 8.77Z"/></svg>',
-    date:'<svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M13 11.567C13 12.36 12.36 13 11.567 13H4.433C3.64 13 3 12.36 3 11.567V4.433C3 3.64 3.64 3 4.433 3H6v-.495a.51.51 0 0 1 .412-.497L6.5 2c.276 0 .5.214.5.505V3h2v-.495a.51.51 0 0 1 .412-.497L9.5 2c.276 0 .5.214.5.505V3h1.567C12.36 3 13 3.64 13 4.433v7.134ZM4 6v5.33c0 .37.3.67.67.67h6.66c.37 0 .67-.3.67-.67V6H4Z"/></svg>',
-    boolean:'<svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 13A5 5 0 1 1 8 3a5 5 0 0 1 0 10Zm-2.828-2.172a4 4 0 0 1 5.656-5.656c.004.013-5.645 5.674-5.656 5.656Z"/></svg>',
-    ip:'<svg viewBox="0 0 16 16"><path d="M2 2h12v7H2V2zm1 1v5h10V3H3zm11 6v3H2v-3H1v4h14v-4h-1z"/></svg>'
-  }
-  return icons[type]||icons.string
-}
-function renderDocViewer(doc){
-  const id='dv'+Math.random().toString(36).slice(2,8)
-  const flat=flattenObj(doc)
-  const esc=v=>String(v??'').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
-  let tableRows=flat.map(f=>{
-    const type=getFieldType(f.path)
-    const val=esc(f.value)
-    const fld=esc(f.path)
-    const fldAttr=fld.replace(/'/g,'&#39;').replace(/"/g,'&quot;').replace(/&/g,'&amp;')
-    const valAttr=esc(f.value).replace(/'/g,'&#39;').replace(/"/g,'&quot;').replace(/&/g,'&amp;')
-    return `<tr>
-      <td class="doc-actions">
-        <button class="doc-action-btn" data-act="filterFor" data-field="${fldAttr}" data-value="${valAttr}" title="Filter for value">＋</button>
-        <button class="doc-action-btn" data-act="filterOut" data-field="${fldAttr}" data-value="${valAttr}" title="Filter out value">－</button>
-        <button class="doc-action-btn" data-act="toggleColumn" data-field="${fldAttr}" data-value="" title="Toggle column in table">⊞</button>
-      </td>
-      <td><span class="doc-field-icon">${getTypeIcon(type)}</span><span class="doc-field-name">${fld}</span></td>
-      <td class="doc-value">${val.substring(0,600)}</td>
-    </tr>`
-  }).join('')
-  const jsonStr=JSON.stringify(doc,null,2).replace(/</g,'&lt;').replace(/>/g,'&gt;')
-  return `<div class="doc-expanded">
-    <div class="doc-expand-header">
-      <span class="doc-expand-title">Expanded document</span>
-      <div class="doc-tabs">
-        <button class="doc-tab active" onclick="switchDocView('${id}','table')">Table</button>
-        <button class="doc-tab" onclick="switchDocView('${id}','json')">JSON</button>
-      </div>
-    </div>
-    <div class="doc-view-panel active" id="docTable-${id}">
-      <table class="doc-field-table"><tbody>${tableRows}</tbody></table>
-    </div>
-    <div class="doc-view-panel" id="docJson-${id}">
-      <pre class="doc-json-pre">${jsonStr}</pre>
-    </div>
-  </div>`
-}
-function switchDocView(id,view){
-  const tp=document.getElementById('docTable-'+id),jp=document.getElementById('docJson-'+id)
-  if(!tp||!jp)return
-  tp.classList.toggle('active',view==='table');jp.classList.toggle('active',view==='json')
-  const ex=tp.closest('.doc-expanded')
-  if(ex)ex.querySelectorAll('.doc-tab').forEach(t=>t.classList.toggle('active',t.textContent.trim().toLowerCase()===view))
-}
-function buildDql(){
-  const parts=[]
-  dFilters.forEach(f=>{
-    if(f.negate||f.type==='exists'||f.value==='')return
-    const v=String(f.value??'').replace(/"/g,'\\"')
-    const q=isNumericField(f.field)?'':'"'
-    parts.push(`${f.field}:${q}${v}${q}`)
-  })
-  const userQ=document.getElementById('dqlInput').value.trim()
-  if(userQ)parts.push(userQ)
-  return parts.join(' AND ')
-}
-function applyClientFilters(results){
-  const negs=dFilters.filter(f=>f.negate)
-  const exs=dFilters.filter(f=>f.type==='exists')
-  const emptyPos=dFilters.filter(f=>!f.negate&&f.type!=='exists'&&f.value==='')
-  if(!negs.length&&!exs.length&&!emptyPos.length) return results
-  return results.filter(r=>{
-    return negs.every(f=>String(resolveField(r,f.field)??'')!==f.value)
-        && exs.every(f=>{const v=resolveField(r,f.field);return v!==null&&v!==undefined&&v!==''})
-        && emptyPos.every(f=>{const v=resolveField(r,f.field);return v===null||v===undefined||v===''})
-  })
-}
-function renderFilterChips(){
-  const bar=document.getElementById('dFilterBar')
-  if(!dFilters.length){bar.innerHTML='';return}
-  bar.innerHTML=dFilters.map((f,i)=>{
-    const q=isNumericField(f.field)?'':'"'
-    let valDisplay=f.type==='exists'?'*':f.value===''?'&lt;empty&gt;':`<span class="filter-badge-val">${q}${f.value}${q}</span>`
-    const negHtml=f.negate?'<span class="filter-badge-neg">NOT </span>':''
-    return `<span class="filter-badge${f.negate?' negated':''}">
-      <button class="filter-badge-main" onclick="dRemoveFilter(${i})" title="Remove filter">${negHtml}${f.field}: ${valDisplay}</button>
-      <button class="filter-badge-x" onclick="dRemoveFilter(${i})" title="Delete">✕</button>
-    </span>`
-  }).join('')
-}
-function dClearAllFilters(){dFilters=[];renderFilterChips();discoverSearch()}
-function dShowAddFilter(){
-  const input=prompt('Add filter (e.g. rule.level:7 or -agent.name:chat-bot for NOT):')
-  if(!input)return
-  const m=input.match(/^(-)?(.+?):(.+)$/)
-  if(!m){alert('Invalid format. Use field:value or -field:value');return}
-  const field=m[2].trim(),value=m[3].trim()
-  if(m[1])dFilterOut(field,value);else dFilterFor(field,value)
-}
-function dFilterKey(f){return f.field+'|'+f.value+'|'+f.negate+'|'+(f.type||'phrase')}
-function dRemoveFilter(i){
-  dFilters.splice(i,1);renderFilterChips();discoverSearch()
-}
-function dToggleFilter(field,value,negate){
-  const n={field,value:String(value??''),negate,type:'phrase'}
-  if(dFilters.some(f=>dFilterKey(f)===dFilterKey(n)))return
-  dFilters=dFilters.filter(f=>!(f.field===n.field&&f.value===n.value&&f.type==='phrase'))
-  dFilters.push(n);renderFilterChips();discoverSearch()
-}
-function dFilterFor(field,value){dToggleFilter(field,value,false)}
-function dFilterOut(field,value){dToggleFilter(field,value,true)}
-function dFilterExists(field){
-  const n={field,value:'',negate:false,type:'exists'}
-  if(dFilters.some(f=>f.field===n.field&&f.type==='exists'))return
-  dFilters.push(n);renderFilterChips();discoverSearch()
-}
-function dToggleColumn(field){
-  const idx=dColumns.indexOf(field)
-  if(idx>=0)dColumns.splice(idx,1);else dColumns.push(field)
-  if(dColumns.length<1)dColumns=['@timestamp']
-  renderFields(dFieldList);discoverSearch()
-}
-
-document.addEventListener('click',function(e){
-  const btn=e.target.closest('.doc-action-btn')
-  if(!btn)return
-  const act=btn.dataset.act
-  const field=btn.dataset.field
-  const value=btn.dataset.value
-  if(act==='filterFor')dFilterFor(field,value)
-  else if(act==='filterOut')dFilterOut(field,value)
-  else if(act==='toggleColumn')dToggleColumn(field)
-})
 
 async function discoverLoadHistogram(params){
   try{
@@ -866,267 +716,5 @@ async function discoverLoadHistogram(params){
 
 setTimeout(discoverSearch,500)
 </script>
-<script type="text/babel">
-const{useState,useRef,useEffect,useCallback,useMemo}=React;
-function fmtDate(s){
-  try{
-    const d=new Date(s);
-    if(!isNaN(d))return d.toLocaleDateString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
-  }catch(e){}
-  return s;
-}
-function formatPretty(start,end){
-  const m=start.match(/^now-(\d+)([smhdwMy])$/);
-  if(m&&end==='now'){
-    const n=m[1],unit=m[2];
-    const names={s:'second'+(n>1?'s':''),m:'minute'+(n>1?'s':''),h:'hour'+(n>1?'s':''),d:'day'+(n>1?'s':''),w:'week'+(n>1?'s':''),M:'month'+(n>1?'s':''),y:'year'+(n>1?'s':'')};
-    return 'Last '+n+' '+names[unit];
-  }
-  if(start==='now'&&end==='now')return 'Now';
-  if(start.includes('T')||end.includes('T'))return fmtDate(start)+' to '+fmtDate(end);
-  return start+' to '+end;
-}
-const COMMON=[
-  {label:'Today',start:'now/d',end:'now'},
-  {label:'This week',start:'now/w',end:'now'},
-  {label:'Last 15 minutes',start:'now-15m',end:'now'},
-  {label:'Last 30 minutes',start:'now-30m',end:'now'},
-  {label:'Last 1 hour',start:'now-1h',end:'now'},
-  {label:'Last 24 hours',start:'now-24h',end:'now'},
-  {label:'Last 7 days',start:'now-7d',end:'now'},
-  {label:'Last 30 days',start:'now-30d',end:'now'},
-  {label:'Last 90 days',start:'now-90d',end:'now'},
-  {label:'Last 1 year',start:'now-1y',end:'now'}
-];
-const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
-const DAYS=['Su','Mo','Tu','We','Th','Fr','Sa'];
-const UNITS_LONG={s:'Second(s)',m:'Minute(s)',h:'Hour(s)',d:'Day(s)',w:'Week(s)',M:'Month(s)',y:'Year(s)'};
-function getCalCells(year,month){
-  const first=new Date(year,month,1).getDay();
-  const dim=new Date(year,month+1,0).getDate();
-  const dip=new Date(year,month,0).getDate();
-  const cells=[];
-  for(let i=first-1;i>=0;i--){const d=dip-i;const pm=month===0?11:month-1;const py=month===0?year-1:year;cells.push({day:d,month:pm,year:py,other:true,key:py+'-'+pm+'-'+d})}
-  for(let d=1;d<=dim;d++)cells.push({day:d,month,year,other:false,key:year+'-'+month+'-'+d});
-  const rem=42-cells.length;
-  for(let d=1;d<=rem;d++){const nm=month===11?0:month+1;const ny=month===11?year+1:year;cells.push({day:d,month:nm,year:ny,other:true,key:ny+'-'+nm+'-'+d})}
-  return cells;
-}
-function sameDay(a,b){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate()}
-function fmtTime(h,m){return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')}
-function DateRangePicker(){
-  const wrap=useRef(null);
-  const timeRef=useRef(null);
-  const [showQS,setShowQS]=useState(false);
-  const [showDP,setShowDP]=useState(false);
-  const [tab,setTab]=useState('relative');
-  const [relNum,setRelNum]=useState(24);
-  const [relUnit,setRelUnit]=useState('h');
-  const [startDate,setStartDate]=useState('now-24h');
-  const [endDate,setEndDate]=useState('now');
-  const [activeEdge,setActiveEdge]=useState('start');
-  const nowObj=useMemo(()=>new Date(),[]);
-  const [calYear,setCalYear]=useState(nowObj.getFullYear());
-  const [calMonth,setCalMonth]=useState(nowObj.getMonth());
-  const [absStartDate,setAbsStartDate]=useState(new Date(Date.now()-24*60*60*1000));
-  const [absEndDate,setAbsEndDate]=useState(new Date());
-  const [absStartTime,setAbsStartTime]=useState(fmtTime(new Date(Date.now()-24*60*60*1000).getHours(),0));
-  const [absEndTime,setAbsEndTime]=useState(fmtTime(new Date().getHours(),new Date().getMinutes()));
-  const isDark=()=>document.documentElement.getAttribute('data-theme')==='dark';
-  const sync=useCallback((s,e)=>{document.getElementById('dStartDate').value=s;document.getElementById('dEndDate').value=e},[]);
-  useEffect(()=>{sync(startDate,endDate)},[startDate,endDate]);
-  const closeAll=useCallback(()=>{setShowQS(false);setShowDP(false)},[]);
-  useEffect(()=>{
-    function h(e){if(wrap.current&&!wrap.current.contains(e.target))closeAll()}
-    if(showQS||showDP){document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h)}
-  },[showQS,showDP]);
-  const initAbs=useCallback(()=>{
-    const p=s=>{if(!s||s==='now')return new Date();const d=parseDateStr(s);return d&&!isNaN(d)?d:new Date()};
-    const sd=p(startDate),ed=p(endDate);
-    setAbsStartDate(sd);setAbsEndDate(ed);
-    setAbsStartTime(fmtTime(sd.getHours(),Math.floor(sd.getMinutes()/30)*30));
-    setAbsEndTime(fmtTime(ed.getHours(),Math.floor(ed.getMinutes()/30)*30));
-    setCalYear(sd.getFullYear());setCalMonth(sd.getMonth());
-  },[startDate,endDate]);
-  useEffect(()=>{
-    if(showDP&&tab==='absolute'&&timeRef.current){
-      const sel=timeRef.current.querySelector('[data-sel="1"]');
-      if(sel)sel.scrollIntoView({block:'center',behavior:'smooth'})
-    }
-  }, [showDP, tab, activeEdge, absStartTime, absEndTime]);
-  useEffect(() => {
-    if (!showDP) return;
-    const target = activeEdge === 'start' ? absStartDate : absEndDate;
-    if (target.getMonth() !== calMonth || target.getFullYear() !== calYear) {
-      setCalYear(target.getFullYear()); setCalMonth(target.getMonth());
-    }
-  }, [showDP, activeEdge]);
-  const applyRel=useCallback(()=>{setStartDate('now-'+relNum+relUnit);setEndDate('now');closeAll();setTimeout(discoverSearch,50)},[relNum,relUnit]);
-  const applyNow=useCallback(()=>{setStartDate('now');setEndDate('now');closeAll();setTimeout(discoverSearch,50)},[]);
-  const applyCommon=useCallback((c)=>{setStartDate(c.start);setEndDate(c.end);const m=c.start.match(/\d+/);setRelNum(m?parseInt(m[0]):24);const u=c.start.match(/[a-z]+$/);setRelUnit(u?u[0]:'h');closeAll();setTimeout(discoverSearch,50)},[]);
-  const applyAbsolute=useCallback(()=>{
-    let sd=new Date(absStartDate);const[sh,sm]=absStartTime.split(':').map(Number);sd.setHours(sh,sm,0,0);
-    let ed=new Date(absEndDate);const[eh,em]=absEndTime.split(':').map(Number);ed.setHours(eh,em,0,0);
-    if(ed<=sd){ed=new Date(sd);ed.setDate(ed.getDate()+1);ed.setHours(0,0,0,0)}
-    setStartDate(sd.toISOString());setEndDate(ed.toISOString());closeAll();setTimeout(discoverSearch,50)
-  },[absStartDate,absEndDate,absStartTime,absEndTime]);
-  const label=formatPretty(startDate,endDate);
-  const d=isDark();
-  const bdr=d?'border-[#263238]':'border-gray-200';
-  const bp=d?'bg-[#0d151e] border-[#263238] text-gray-200':'bg-gray-50 border-gray-300 text-gray-800';
-  const txt=d?'text-gray-300':'text-gray-600';
-  const txt2=d?'text-gray-400':'text-gray-500';
-  const btn=d?'border-[#263238] text-gray-300 hover:bg-[#263238]':'border-gray-300 text-gray-600 hover:bg-gray-100';
-  const tabCls='px-4 py-2 text-xs font-semibold border-b-2 cursor-pointer transition-colors '+(d?'text-gray-400 border-transparent hover:text-white':'text-gray-500 border-transparent hover:text-gray-800');
-  const tabAct='px-4 py-2 text-xs font-semibold border-b-2 cursor-pointer transition-colors '+(d?'text-blue-400 border-blue-400':'text-blue-600 border-blue-600');
-  const cCells=getCalCells(calYear,calMonth);
-  const today=new Date();
-  const selDate=activeEdge==='start'?absStartDate:absEndDate;
-  const selTime=activeEdge==='start'?absStartTime:absEndTime;
-  const setSelDate=dt=>{if(activeEdge==='start')setAbsStartDate(dt);else setAbsEndDate(dt)};
-  const setSelTime=t=>{if(activeEdge==='start')setAbsStartTime(t);else setAbsEndTime(t)};
-  const timeSlots=[];for(let h=0;h<24;h++)for(let m=0;m<60;m+=30)timeSlots.push(fmtTime(h,m));
-  const nowTime=fmtTime(today.getHours(),today.getMinutes());
-
-  return React.createElement('div',{className:'flex items-center gap-1',ref:wrap},
-    React.createElement('div',{className:'relative'},
-      React.createElement('button',{
-        onClick:e=>{e.stopPropagation();setShowQS(!showQS);setShowDP(false)},
-        className:'px-1.5 py-1 rounded-l text-xs transition-colors '+(d?'hover:bg-[#263238] text-gray-400':'hover:bg-gray-100 text-gray-500'),
-        title:'Quick select'
-      },'\uD83D\uDCC5'),
-      showQS&&React.createElement('div',{
-        className:'absolute top-full left-0 mt-1 z-[200] w-[340px] rounded-lg shadow-2xl border overflow-hidden animate-pop '+(d?'bg-[#1a2633] border-[#263238]':'bg-white border-gray-200')},
-        React.createElement('div',{className:'p-3'},
-          React.createElement('div',{className:'flex items-center gap-2 mb-3'},
-            React.createElement('span',{className:'text-xs font-medium '+txt},'Last'),
-            React.createElement('input',{type:'number',min:1,value:relNum,onChange:e=>setRelNum(parseInt(e.target.value)||1),className:'w-16 px-2 py-1 text-xs border rounded text-center '+bp}),
-            React.createElement('select',{value:relUnit,onChange:e=>setRelUnit(e.target.value),className:'px-2 py-1 text-xs border rounded '+bp},
-              Object.keys(UNITS_LONG).map(u=>React.createElement('option',{key:u,value:u},UNITS_LONG[u]))
-            ),
-            React.createElement('button',{onClick:applyRel,className:'px-3 py-1 text-xs font-semibold text-white rounded bg-blue-600 hover:bg-blue-700 transition-colors'},'Apply')
-          ),
-          React.createElement('div',{className:'font-semibold text-xs mb-1 '+txt},'Commonly used'),
-          React.createElement('div',{className:'grid grid-cols-2 gap-x-2'},
-            COMMON.map((c,i)=>React.createElement('button',{key:i,onClick:()=>applyCommon(c),className:'text-left px-2 py-1 text-xs rounded transition-colors '+(d?'text-blue-400 hover:bg-[#263238]':'text-blue-600 hover:bg-gray-100')},c.label))
-          )
-        )
-      )
-    ),
-    React.createElement('div',{className:'relative'},
-      React.createElement('button',{
-        onClick:e=>{e.stopPropagation();setShowDP(!showDP);setShowQS(false);if(!showDP)initAbs()},
-        className:'flex items-center gap-1.5 px-2.5 py-1 text-xs border-r-0 rounded-r whitespace-nowrap transition-colors '+(d?'bg-[#1a2633] border-[#263238] text-gray-200 hover:bg-[#263238]':'bg-white border-gray-300 text-gray-700 hover:bg-gray-50')
-      },
-        React.createElement('span',{className:'font-medium'},label),
-        React.createElement('span',{className:'text-[10px] '+(d?'text-gray-500':'text-gray-400')},showDP?'\u25B2':'\u25BC')
-      ),
-      showDP&&React.createElement('div',{
-        className:'absolute top-full right-0 mt-1 z-[200] w-[580px] rounded-lg shadow-2xl border overflow-hidden animate-pop '+(d?'bg-[#1a2633] border-[#263238]':'bg-white border-gray-200')},
-        React.createElement('div',{className:'flex border-b '+bdr},
-          ['relative','absolute','now'].map(t=>React.createElement('div',{key:t,onClick:()=>{setTab(t);if(t==='absolute')initAbs()},className:tab===t?tabAct:tabCls},t.charAt(0).toUpperCase()+t.slice(1)))
-        ),
-        tab==='relative'&&React.createElement('div',{className:'p-4 space-y-4'},
-          React.createElement('div',{className:'flex items-center gap-3'},
-            React.createElement('span',{className:'text-xs font-medium '+txt},'Last'),
-            React.createElement('input',{type:'number',min:1,value:relNum,onChange:e=>setRelNum(parseInt(e.target.value)||1),className:'w-20 px-2 py-1 text-xs border rounded text-center '+bp}),
-            React.createElement('select',{value:relUnit,onChange:e=>setRelUnit(e.target.value),className:'px-2 py-1 text-xs border rounded '+bp},
-              ['h','d','w','M','y'].map(u=>React.createElement('option',{key:u,value:u},{h:'Hour(s)',d:'Day(s)',w:'Week(s)',M:'Month(s)',y:'Year(s)'}[u]))
-            ),
-            React.createElement('span',{className:'text-xs '+txt2},'to now')
-          ),
-          React.createElement('div',{className:'flex justify-between text-xs '+txt2},
-            React.createElement('div',null,React.createElement('span',{className:'font-semibold '+txt},'Start: '),startDate),
-            React.createElement('div',null,React.createElement('span',{className:'font-semibold '+txt},'End: '),endDate)
-          ),
-          React.createElement('div',{className:'flex justify-end gap-2 pt-2 border-t '+bdr},
-            React.createElement('button',{onClick:closeAll,className:'px-4 py-1.5 text-xs rounded border transition-colors '+btn},'Cancel'),
-            React.createElement('button',{onClick:applyRel,className:'px-4 py-1.5 text-xs rounded font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors'},'Apply')
-          )
-        ),
-        tab==='absolute'&&React.createElement('div',{className:'p-3'},
-          React.createElement('div',{className:'flex gap-2 mb-2'},
-            React.createElement('button',{onClick:()=>setActiveEdge('start'),className:'px-2 py-1 rounded text-xs font-semibold transition-colors '+(activeEdge==='start'?'bg-blue-600 text-white':'border rounded '+btn)},'Start date'),
-            React.createElement('button',{onClick:()=>setActiveEdge('end'),className:'px-2 py-1 rounded text-xs font-semibold transition-colors '+(activeEdge==='end'?'bg-blue-600 text-white':'border rounded '+btn)},'End date')
-          ),
-          React.createElement('div',{className:'flex gap-3'},
-            React.createElement('div',{className:'flex-1 min-w-0'},
-              React.createElement('div',{className:'flex items-center justify-between mb-1 px-1 '+txt},
-                React.createElement('button',{onClick:()=>{if(calMonth===0){setCalYear(y=>y-1);setCalMonth(11)}else setCalMonth(m=>m-1)},className:'px-2 py-0.5 rounded hover:bg-blue-500/20 transition-colors text-sm',title:'Previous month'},'\u25C0'),
-                React.createElement('span',{className:'text-xs font-semibold'},MONTHS[calMonth]+' '+calYear),
-                React.createElement('button',{onClick:()=>{if(calMonth===11){setCalYear(y=>y+1);setCalMonth(0)}else setCalMonth(m=>m+1)},className:'px-2 py-0.5 rounded hover:bg-blue-500/20 transition-colors text-sm',title:'Next month'},'\u25B6')
-              ),
-              React.createElement('div',{className:'grid grid-cols-7 gap-0 mb-0.5'},
-                DAYS.map(dd=>React.createElement('div',{key:dd,className:'text-center text-[10px] font-semibold py-1 '+txt2},dd))
-              ),
-              React.createElement('div',{className:'grid grid-cols-7 gap-0'},
-                  cCells.map(cell=>{
-                  const cd=new Date(cell.year,cell.month,cell.day);
-                  const isT=sameDay(cd,today);
-                  const isSel=sameDay(cd,selDate);
-                  const cls='text-center text-xs py-1 rounded transition-colors '+(isSel?'bg-blue-600 text-white font-semibold':isT?d?'bg-blue-500/20 text-blue-400 font-semibold':'bg-blue-100 text-blue-700 font-semibold':cell.other?d?'text-gray-600':'text-gray-400':d?'text-gray-300 hover:bg-[#263238]':'text-gray-700 hover:bg-gray-100');
-                  const pickDate=()=>{const nd=new Date(cell.year,cell.month,cell.day);const[h,m]=selTime.split(':').map(Number);nd.setHours(h,m,0,0);setSelDate(nd)};
-                  return React.createElement('button',{key:cell.key,onClick:pickDate,className:cls,tabIndex:0,onKeyDown:e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pickDate()}},title:MONTHS[cell.month]+' '+cell.day+', '+cell.year},cell.day)
-                })
-              ),
-              React.createElement('div',{className:'mt-2 pt-2 border-t text-xs '+bdr},
-                React.createElement('div',{className:'flex items-center gap-2 mb-1'},
-                  React.createElement('span',{className:'font-semibold '+txt},'Start:'),
-                  React.createElement('input',{type:'datetime-local',value:String(absStartDate.getFullYear())+'-'+String(absStartDate.getMonth()+1).padStart(2,'0')+'-'+String(absStartDate.getDate()).padStart(2,'0')+'T'+absStartTime,onChange:e=>{const v=e.target.value;if(v){const[dStr,tStr]=v.split('T');const[y,mo,da]=dStr.split('-').map(Number);setAbsStartDate(new Date(y,mo-1,da));setAbsStartTime(tStr)}},className:'flex-1 px-2 py-1 border rounded text-xs '+bp})
-                ),
-                React.createElement('div',{className:'flex items-center gap-2'},
-                  React.createElement('span',{className:'font-semibold '+txt},'End:'),
-                  React.createElement('input',{type:'datetime-local',value:String(absEndDate.getFullYear())+'-'+String(absEndDate.getMonth()+1).padStart(2,'0')+'-'+String(absEndDate.getDate()).padStart(2,'0')+'T'+absEndTime,onChange:e=>{const v=e.target.value;if(v){const[dStr,tStr]=v.split('T');const[y,mo,da]=dStr.split('-').map(Number);setAbsEndDate(new Date(y,mo-1,da));setAbsEndTime(tStr)}},className:'flex-1 px-2 py-1 border rounded text-xs '+bp})
-                )
-              )
-            ),
-            React.createElement('div',{className:'w-20 border-l pl-2 '+bdr},
-              React.createElement('div',{className:'text-[10px] font-semibold mb-1 text-center '+txt2},'Time'),
-              React.createElement('div',{ref:timeRef,className:'h-[276px] overflow-y-auto space-y-0.5 pr-0.5'},
-                timeSlots.map(t=>React.createElement('button',{
-                  key:t,
-                  'data-sel':t===selTime?'1':'0',
-                  onClick:()=>setSelTime(t),
-                  className:'block w-full text-center text-xs py-1 rounded transition-colors '+(t===selTime?'bg-blue-600 text-white font-semibold':t===nowTime?d?'text-blue-400 font-medium':'text-blue-600 font-medium':d?'text-gray-400 hover:bg-[#263238]':'text-gray-600 hover:bg-gray-100')
-                },t))
-              )
-            )
-          ),
-          React.createElement('div',{className:'flex justify-end gap-2 pt-2 mt-2 border-t '+bdr},
-            React.createElement('button',{onClick:closeAll,className:'px-4 py-1.5 text-xs rounded border transition-colors '+btn},'Cancel'),
-            React.createElement('button',{onClick:applyAbsolute,className:'px-4 py-1.5 text-xs rounded font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors'},'Apply')
-          )
-        ),
-        tab==='now'&&React.createElement('div',{className:'p-6 text-center space-y-4'},
-          React.createElement('div',{className:'text-lg'},'\uD83D\uDD50'),
-          React.createElement('div',{className:'text-sm font-semibold '+txt},'Set start and end to now'),
-          React.createElement('div',{className:'flex justify-center gap-2'},
-            React.createElement('button',{onClick:closeAll,className:'px-4 py-1.5 text-xs rounded border transition-colors '+btn},'Cancel'),
-            React.createElement('button',{onClick:applyNow,className:'px-4 py-1.5 text-xs rounded font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors'},'Apply')
-          )
-        )
-      )
-    )
-  );
-}
-const root=ReactDOM.createRoot(document.getElementById('datePickerMount'));
-root.render(React.createElement(DateRangePicker));
-</script>
-<style>
-.animate-pop{animation:popIn .15s ease-out}@keyframes popIn{0%{opacity:0;transform:scale(.96) translateY(-4px)}to{opacity:1;transform:scale(1) translateY(0)}}
-#dFilterBar+.add-filter-btn{transition:opacity .2s}
-.th-col{position:relative;padding:0!important;white-space:nowrap}
-.th-wrap{display:flex;align-items:center;gap:4px;padding:6px 8px;transition:background .15s}
-.th-wrap:hover{background:var(--hover)}
-.th-name{cursor:pointer;color:var(--accent);font-weight:600;font-size:12px;flex-shrink:0}
-.th-actions{display:none;align-items:center;gap:2px}
-.th-wrap:hover .th-actions{display:flex}
-.th-act{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:3px;cursor:pointer;opacity:.6;transition:.15s}
-.th-act:hover{opacity:1;background:var(--accent);color:#fff}
-.th-remove:hover{background:#d32f2f!important}
-.th-act svg{fill:currentColor;width:10px;height:10px}
-.sort-asc svg,.sort-desc svg{fill:var(--accent)!important;opacity:1!important}
-.sort-none svg{opacity:.4}
-</style>
 </body>
 </html>

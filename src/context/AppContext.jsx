@@ -20,7 +20,7 @@ export function AppProvider({ children }) {
   const [index, setIndex] = useState('wazuh-alerts-4.x-*')
   const [sortField, setSortField] = useState('@timestamp')
   const [sortOrder, setSortOrder] = useState('desc')
-  const [columns, setColumns] = useState(['@timestamp', 'rule.id', 'rule.level', 'rule.description', 'agent.name'])
+  const [columns, setColumns] = useState(['@timestamp', 'Rule', 'rule.id', 'rule.description'])
   const [results, setResults] = useState([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)

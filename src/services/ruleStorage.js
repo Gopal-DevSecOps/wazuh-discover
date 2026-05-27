@@ -33,6 +33,7 @@ export function createRule(defaults = {}) {
     id: createId(),
     name: defaults.name || 'New Rule',
     enabled: true,
+    overwrite: true,
     conditionLogic: 'AND',
     actions: [{ type: 'alert', params: { severity: 'high', message: '' } }],
     conditions: [],
