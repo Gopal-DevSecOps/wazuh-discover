@@ -102,6 +102,20 @@ export default function SecurityDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const intervalRef = useRef(null)
+  const [scanTarget, setScanTarget] = useState('')
+  const [scanResults, setScanResults] = useState(null)
+  const [scanLoading, setScanLoading] = useState(false)
+
+  const runScan = async () => {
+    if (!scanTarget.trim()) return
+    setScanLoading(true)
+    try {
+      const { apiPost } = await import('../api')
+      const d = await apiPost('scan', { target: scanTarget.trim() })
+      setScanResults(d)
+    } catch (e) { setScanResults({ error: e.message }) }
+    finally { setScanLoading(false) }
+  }
 
   const qs = (d) => d ? '&start_date=' + encodeURIComponent(d) : ''
 
@@ -187,6 +201,27 @@ export default function SecurityDashboard() {
 
   return (
     <div className="space-y-4 pb-6">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-[#16181f] border border-[#2d3140] rounded-xl p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[11px] font-semibold text-[#e4e6eb]">{'\uD83D\uDD0D'} Security Scanner</span>
+          <span className="text-[9px] text-[#6b7280]">IP / Hostname / URL</span>
+        </div>
+        <div className="flex gap-2">
+          <input type="text" value={scanTarget} onChange={e => setScanTarget(e.target.value)} placeholder="e.g. 192.168.1.1 or example.com" className="flex-1 bg-[#1e2030] border border-[#2d3140] rounded-lg px-3 py-1.5 text-xs text-[#d1d5db] outline-none focus:border-[#3b82f6] transition-colors placeholder:text-[#4b5563]" onKeyDown={e => e.key === 'Enter' && runScan()} />
+          <button onClick={runScan} disabled={scanLoading} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[#3b82f6] text-white hover:bg-[#2563eb] disabled:opacity-50 transition-all shrink-0">
+            {scanLoading ? '\u23F3 Scanning...' : '\uD83D\uDD0D Scan'}
+          </button>
+        </div>
+        {scanResults && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-2">
+            <div className="bg-[#1e2030] rounded-lg p-2 max-h-40 overflow-auto">
+              <pre className="text-[10px] text-[#9ca3af] leading-relaxed">{JSON.stringify(scanResults, null, 2)}</pre>
+            </div>
+            <button onClick={() => setScanResults(null)} className="mt-1 text-[9px] text-[#6b7280] hover:text-[#9ca3af] transition-colors">Clear results</button>
+          </motion.div>
+        )}
+      </motion.div>
+
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#16181f] border border-[#2d3140] rounded-xl p-3">
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-[#e4e6eb]">SOC Security Dashboard</span>
