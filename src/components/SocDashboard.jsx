@@ -31,8 +31,8 @@ const CustomTooltip = ({ active, payload, label }) => {
 }
 
 function FilterBtn({ field, value, label }) {
-  const { addFilter, setTab } = useApp()
-  const handle = (e) => { e.stopPropagation(); addFilter(field, value, false); setTab('discover') }
+  const { addFilter } = useApp()
+  const handle = (e) => { e.stopPropagation(); addFilter(field, value, false) }
   return (
     <button onClick={handle} className="ml-auto p-1 rounded hover:bg-[#3b82f6]/20 text-[#9ca3af] dark:text-[#6b7280] hover:text-[#3b82f6] dark:hover:text-[#60a5fa] transition-all shrink-0 opacity-0 group-hover:opacity-100" title={'Filter by ' + label}>
       <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path fillRule="evenodd" d="M8 7h3.5a.5.5 0 1 1 0 1H8v3.5a.5.5 0 1 1-1 0V8H3.5a.5.5 0 0 1 0-1H7V3.5a.5.5 0 0 1 1 0V7Z"/></svg>
@@ -64,7 +64,7 @@ const SEV_RANGES = {
 }
 
 export default function SocDashboard() {
-  const { addFilter, setTab } = useApp()
+  const { addFilter } = useApp()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -72,7 +72,7 @@ export default function SocDashboard() {
   const [timeRange, setTimeRange] = useState('now-24h')
   const timerRef = useRef(null)
 
-  const navToDiscover = (field, value) => { addFilter(field, value, false); setTab('discover') }
+  const navToDiscover = (field, value) => { addFilter(field, value, false) }
 
   const fetchDashboard = () => {
     const sd = parseDateStr(timeRange).toISOString()
@@ -151,7 +151,7 @@ export default function SocDashboard() {
           const isUp = pct > 0
           return (
             <motion.button key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
-              onClick={() => item.field === '*' ? setTab('discover') : navToDiscover(item.field, item.val)}
+              onClick={() => navToDiscover(item.field, item.val)}
               className="gcard p-3.5 text-left hover:shadow-md transition-all group">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] uppercase tracking-wider text-[#9ca3af] dark:text-[#6b7280] font-semibold">{item.label}</span>

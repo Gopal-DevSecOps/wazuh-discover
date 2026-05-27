@@ -70,8 +70,8 @@ const CustomTooltip = ({ active, payload, label }) => {
 }
 
 function FilterBtn({ field, value, label }) {
-  const { addFilter, setTab } = useApp()
-  const handle = (e) => { e.stopPropagation(); addFilter(field, value, false); setTab('discover') }
+  const { addFilter } = useApp()
+  const handle = (e) => { e.stopPropagation(); addFilter(field, value, false) }
   return (
     <button onClick={handle} className="ml-auto p-1 rounded hover:bg-[#3b82f6]/20 text-[#9ca3af] dark:text-[#6b7280] hover:text-[#3b82f6] dark:hover:text-[#60a5fa] transition-all shrink-0 opacity-0 group-hover:opacity-100" title={'Filter by ' + label}>
       <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path fillRule="evenodd" d="M8 7h3.5a.5.5 0 1 1 0 1H8v3.5a.5.5 0 1 1-1 0V8H3.5a.5.5 0 0 1 0-1H7V3.5a.5.5 0 0 1 1 0V7Z"/></svg>
@@ -89,7 +89,7 @@ function PulseDot({ color = '#22c55e' }) {
 }
 
 export default function SecurityDashboard() {
-  const { addFilter, setTab } = useApp()
+  const { addFilter } = useApp()
   const [timeRange, setTimeRange] = useState('now-24h')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -212,8 +212,8 @@ export default function SecurityDashboard() {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [fetchData])
 
-  const navToDiscover = (field, value) => { addFilter(field, value, false); setTab('discover') }
-  const navToDiscoverQ = (q) => { addFilter('_dql', q, false); setTab('discover') }
+  const navToDiscover = (field, value) => { addFilter(field, value, false) }
+  const navToDiscoverQ = (q) => { addFilter('_dql', q, false) }
 
   const severityPie = data ? Object.entries(data.severity).map(([k, v]) => {
     const cfg = SEV_CONFIG.find(s => s.key === k)
